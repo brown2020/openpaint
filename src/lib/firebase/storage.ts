@@ -155,6 +155,11 @@ export function loadImageToCanvas(
   canvas: HTMLCanvasElement
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!url) {
+      reject(new Error("No image URL provided"));
+      return;
+    }
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -169,7 +174,15 @@ export function loadImageToCanvas(
       ctx.drawImage(img, 0, 0);
       resolve();
     };
-    img.onerror = () => reject(new Error("Failed to load image"));
+    img.onerror = (event) => {
+      // Provide more helpful error message
+      console.error("Image load failed for URL:", url.substring(0, 100) + "...");
+      console.error(
+        "This is often caused by CORS configuration. Ensure Firebase Storage has CORS configured for your domain. " +
+        "See: https://firebase.google.com/docs/storage/web/download-files#cors_configuration"
+      );
+      reject(new Error(`Failed to load image from Firebase Storage. Check console for CORS configuration details.`));
+    };
     img.src = url;
   });
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { useLayers } from "@/hooks/useLayers";
+import { useProjects } from "@/hooks/useProjects";
 import type { Size } from "@/types";
 
 interface LayerCanvasProps {
@@ -17,30 +18,41 @@ interface LayerCanvasProps {
  */
 export function LayerCanvas({ layerId, size, visible, opacity }: LayerCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const loadedRef = useRef<boolean>(false);
   const { registerLayerCanvas, unregisterLayerCanvas } = useLayers();
+  const { pendingLayerLoads, loadPendingLayerImage } = useProjects();
 
   // Register canvas with the store
   useEffect(() => {
-    if (canvasRef.current) {
-      registerLayerCanvas(layerId, canvasRef.current);
-    }
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    registerLayerCanvas(layerId, canvas);
 
     return () => {
       unregisterLayerCanvas(layerId);
     };
   }, [layerId, registerLayerCanvas, unregisterLayerCanvas]);
 
-  // Initialize canvas with transparent background
+  // Load pending image when canvas is ready
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    // Only try to load once per mount
+    if (loadedRef.current) return;
 
-    // Clear to transparent
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, [size.width, size.height]);
+    const storageRef = pendingLayerLoads[layerId];
+    if (storageRef) {
+      loadedRef.current = true;
+      loadPendingLayerImage(layerId, canvas);
+    }
+  }, [layerId, pendingLayerLoads, loadPendingLayerImage]);
+
+  // Reset loaded flag when layerId changes
+  useEffect(() => {
+    loadedRef.current = false;
+  }, [layerId]);
 
   return (
     <canvas

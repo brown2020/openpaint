@@ -100,6 +100,7 @@ interface CanvasStore {
 
   // Project Actions
   newProject: (size?: Size) => void;
+  loadProjectLayers: (size: Size, layers: Layer[], activeLayerId: string) => void;
   clearCanvas: () => void;
 }
 
@@ -360,6 +361,20 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
         canvasSize: size,
         layers: [newLayer],
         activeLayerId: newLayer.id,
+        layerCanvases: new Map(),
+        history: [],
+        historyIndex: -1,
+        selection: null,
+        zoom: 1,
+        pan: { x: 0, y: 0 },
+      });
+    },
+
+    loadProjectLayers: (size: Size, layers: Layer[], activeLayerId: string) => {
+      set({
+        canvasSize: size,
+        layers,
+        activeLayerId,
         layerCanvases: new Map(),
         history: [],
         historyIndex: -1,

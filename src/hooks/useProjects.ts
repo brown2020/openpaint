@@ -36,6 +36,7 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
+    pendingLayerLoads,
     setProjects,
     addProject,
     removeProject,
@@ -47,6 +48,8 @@ export function useProjects() {
     setLastSyncTime,
     markDirty,
     clearDirty,
+    setPendingLayerLoads,
+    clearPendingLayerLoad,
   } = useProjectStore();
 
   const canvasStore = useCanvasStore();
@@ -136,13 +139,11 @@ export function useProjects() {
         const project = await getProject(projectId);
         if (!project || project.userId !== user.uid) {
           setError("Project not found or access denied.");
+          setLoading(false);
           return false;
         }
 
-        // Set canvas size
-        canvasStore.setCanvasSize(project.canvasSize);
-
-        // Clear existing layers and create new ones from project
+        // Create layer objects from project metadata
         const newLayers: Layer[] = project.layers.map((layerMeta) => ({
           id: layerMeta.id,
           name: layerMeta.name,
@@ -152,41 +153,38 @@ export function useProjects() {
           blendMode: layerMeta.blendMode as Layer["blendMode"],
         }));
 
-        // We need to wait for canvases to be ready before loading images
-        // This will be handled by the component after layers are set
-
-        // Store layer storage refs for later loading
-        const layerRefs = new Map<string, string>();
+        // Collect layer storage refs for pending loads
+        const layerRefs: Record<string, string> = {};
         project.layers.forEach((layer) => {
           if (layer.storageRef) {
-            layerRefs.set(layer.id, layer.storageRef);
+            layerRefs[layer.id] = layer.storageRef;
           }
         });
+
+        // Set pending layer loads - these will be loaded when canvases register
+        setPendingLayerLoads(layerRefs);
 
         // Set current project
         setCurrentProject(projectId, project.name);
 
-        // The actual image loading happens in the component
-        // Store the layer refs in session storage for the component to use
-        sessionStorage.setItem(
-          `project-layers-${projectId}`,
-          JSON.stringify(Object.fromEntries(layerRefs))
+        // Load project layers into canvas store (this resets layerCanvases)
+        canvasStore.loadProjectLayers(
+          project.canvasSize,
+          newLayers,
+          project.activeLayerId
         );
-
-        // Update canvas store with project layers
-        // Note: This resets layerCanvases, actual content will be loaded by component
-        canvasStore.newProject(project.canvasSize);
 
         setSyncStatus("synced");
         setLastSyncTime(Date.now());
         clearDirty();
         setLoading(false);
 
-        return { project, newLayers, layerRefs };
+        return true;
       } catch (error) {
         console.error("Failed to load project:", error);
         setError("Failed to load project. Please try again.");
         setSyncStatus("error");
+        setLoading(false);
         return false;
       }
     },
@@ -198,6 +196,7 @@ export function useProjects() {
       setLastSyncTime,
       setCurrentProject,
       clearDirty,
+      setPendingLayerLoads,
       canvasStore,
     ]
   );
@@ -415,6 +414,34 @@ export function useProjects() {
     [canvasStore]
   );
 
+  /**
+   * Load a single layer image when its canvas becomes available
+   */
+  const loadPendingLayerImage = useCallback(
+    async (layerId: string, canvas: HTMLCanvasElement) => {
+      const storageRef = pendingLayerLoads[layerId];
+      if (!storageRef) return;
+
+      try {
+        const url = await downloadLayerImage(storageRef);
+        await loadImageToCanvas(url, canvas);
+        clearPendingLayerLoad(layerId);
+      } catch (error) {
+        console.error(`Failed to load layer ${layerId}:`, error);
+        // Still clear the pending load to prevent infinite retries
+        clearPendingLayerLoad(layerId);
+        // Set a user-friendly error message
+        if (error instanceof Error && error.message.includes("CORS")) {
+          setError(
+            "Failed to load project images. Firebase Storage CORS may not be configured. " +
+            "Please check the console for configuration details."
+          );
+        }
+      }
+    },
+    [pendingLayerLoads, clearPendingLayerLoad, setError]
+  );
+
   return {
     // State
     projects,
@@ -423,6 +450,7 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
+    pendingLayerLoads,
 
     // Actions
     fetchProjects,
@@ -432,6 +460,7 @@ export function useProjects() {
     deleteProject,
     renameProject,
     loadLayerImages,
+    loadPendingLayerImage,
     markDirty,
   };
 }
