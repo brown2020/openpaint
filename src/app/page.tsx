@@ -1,10 +1,14 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
+import { useAuthStore } from "@/store/authStore";
+import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useLayers } from "@/hooks/useLayers";
 import { useHistory } from "@/hooks/useHistory";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useProjects } from "@/hooks/useProjects";
+import { useAutoSave } from "@/hooks/useAutoSave";
 import { CanvasContainer } from "@/components/canvas/CanvasContainer";
 import { Toolbar } from "@/components/toolbar/Toolbar";
 import { ToolPanel } from "@/components/toolbar/ToolPanel";
@@ -12,17 +16,44 @@ import { ColorPicker } from "@/components/toolbar/ColorPicker";
 import { BrushSettings } from "@/components/toolbar/BrushSettings";
 import { LayersPanel } from "@/components/panels/LayersPanel";
 import { StatusBar } from "@/components/panels/StatusBar";
+import { AuthModal } from "@/components/auth/AuthModal";
+import { ProjectListModal, NewProjectDialog } from "@/components/projects";
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { isFirebaseConfigured } from "@/lib/firebase/auth";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user, initialized: authInitialized } = useAuthStore();
+  const { currentProjectId, currentProjectName } = useProjectStore();
   const { canvasSize, newProject } = useCanvasStore();
   const { layers, addLayer, getLayerCanvas, compositeToCanvas } = useLayers();
   const { canUndo, canRedo } = useHistory();
+  const { saveProject, createNewProject } = useProjects();
+
+  // Initialize auto-save
+  useAutoSave({ enabled: !!user && !!currentProjectId });
+
+  // Modal states
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProjectList, setShowProjectList] = useState(false);
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+
+  // Show project picker after auth
+  useEffect(() => {
+    if (authInitialized && user && !currentProjectId) {
+      setShowProjectList(true);
+    }
+  }, [authInitialized, user, currentProjectId]);
+
+  // Show auth modal if not authenticated (only if Firebase is configured)
+  useEffect(() => {
+    if (authInitialized && !user && isFirebaseConfigured) {
+      setShowAuthModal(true);
+    }
+  }, [authInitialized, user]);
 
   // Handle undo
   const handleUndo = useCallback(() => {
-    // Undo is handled through the history hook
-    // For now, we'll implement a simple version
     console.log("Undo");
   }, []);
 
@@ -31,37 +62,41 @@ export default function Home() {
     console.log("Redo");
   }, []);
 
-  // Handle save to localStorage
-  const handleSave = useCallback(() => {
-    try {
-      // Create a composite of all layers
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = canvasSize.width;
-      tempCanvas.height = canvasSize.height;
-      compositeToCanvas(tempCanvas);
+  // Handle save - now uses cloud save if authenticated
+  const handleSave = useCallback(async () => {
+    if (user && currentProjectId) {
+      await saveProject();
+    } else {
+      // Fallback to localStorage
+      try {
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = canvasSize.width;
+        tempCanvas.height = canvasSize.height;
+        compositeToCanvas(tempCanvas);
 
-      const projectData = {
-        version: "1.0.0",
-        name: "Untitled",
-        createdAt: new Date().toISOString(),
-        modifiedAt: new Date().toISOString(),
-        canvasSize,
-        layers: layers.map((layer) => {
-          const layerCanvas = getLayerCanvas(layer.id);
-          return {
-            ...layer,
-            data: layerCanvas ? layerCanvas.toDataURL("image/png") : "",
-          };
-        }),
-      };
+        const projectData = {
+          version: "1.0.0",
+          name: currentProjectName || "Untitled",
+          createdAt: new Date().toISOString(),
+          modifiedAt: new Date().toISOString(),
+          canvasSize,
+          layers: layers.map((layer) => {
+            const layerCanvas = getLayerCanvas(layer.id);
+            return {
+              ...layer,
+              data: layerCanvas ? layerCanvas.toDataURL("image/png") : "",
+            };
+          }),
+        };
 
-      localStorage.setItem("openpaint-project", JSON.stringify(projectData));
-      alert("Project saved!");
-    } catch (error) {
-      console.error("Failed to save project:", error);
-      alert("Failed to save project");
+        localStorage.setItem("openpaint-project", JSON.stringify(projectData));
+        alert("Project saved locally!");
+      } catch (error) {
+        console.error("Failed to save project:", error);
+        alert("Failed to save project");
+      }
     }
-  }, [canvasSize, layers, getLayerCanvas, compositeToCanvas]);
+  }, [user, currentProjectId, saveProject, canvasSize, layers, getLayerCanvas, compositeToCanvas, currentProjectName]);
 
   // Handle export
   const handleExport = useCallback(() => {
@@ -71,24 +106,32 @@ export default function Home() {
     compositeToCanvas(tempCanvas);
 
     const link = document.createElement("a");
-    link.download = "openpaint-artwork.png";
+    link.download = `${currentProjectName || "openpaint-artwork"}.png`;
     link.href = tempCanvas.toDataURL("image/png");
     link.click();
-  }, [canvasSize, compositeToCanvas]);
+  }, [canvasSize, compositeToCanvas, currentProjectName]);
 
   // Handle new project
   const handleNew = useCallback(() => {
-    if (confirm("Create a new project? Unsaved changes will be lost.")) {
-      newProject();
+    if (user) {
+      setShowNewProjectDialog(true);
+    } else {
+      if (confirm("Create a new project? Unsaved changes will be lost.")) {
+        newProject();
+      }
     }
-  }, [newProject]);
+  }, [user, newProject]);
 
-  // Handle open file
+  // Handle open file/project
   const handleOpen = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
+    if (user) {
+      setShowProjectList(true);
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [user]);
 
-  // Handle file selection
+  // Handle file selection (for local files)
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -98,10 +141,8 @@ export default function Home() {
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          // Create new project with image dimensions
           newProject({ width: img.width, height: img.height });
 
-          // Wait for canvas to be ready, then draw image
           setTimeout(() => {
             const canvas = getLayerCanvas(layers[0]?.id);
             if (canvas) {
@@ -116,11 +157,16 @@ export default function Home() {
       };
       reader.readAsDataURL(file);
 
-      // Reset input
       e.target.value = "";
     },
     [newProject, getLayerCanvas, layers]
   );
+
+  // Handle create new project
+  const handleCreateProject = useCallback(async (name: string, size: { width: number; height: number }) => {
+    await createNewProject(name, size);
+    setShowNewProjectDialog(false);
+  }, [createNewProject]);
 
   // Set up keyboard shortcuts
   useKeyboardShortcuts({
@@ -130,6 +176,18 @@ export default function Home() {
     onExport: handleExport,
     onNewLayer: addLayer,
   });
+
+  // Show loading while auth is initializing
+  if (!authInitialized) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-gray-100">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600">Loading OpenPaint...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
@@ -178,6 +236,31 @@ export default function Home() {
 
       {/* Status bar */}
       <StatusBar />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal && !user}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={() => {
+          setShowAuthModal(false);
+          setShowProjectList(true);
+        }}
+        closable={false}
+      />
+
+      {/* Project List Modal */}
+      <ProjectListModal
+        isOpen={showProjectList && !!user}
+        onClose={() => setShowProjectList(false)}
+        closable={!!currentProjectId}
+      />
+
+      {/* New Project Dialog */}
+      <NewProjectDialog
+        isOpen={showNewProjectDialog}
+        onClose={() => setShowNewProjectDialog(false)}
+        onCreate={handleCreateProject}
+      />
     </div>
   );
 }

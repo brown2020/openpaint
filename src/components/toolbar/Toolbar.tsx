@@ -2,7 +2,9 @@
 
 import { useCallback } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
+import { useAuthStore } from "@/store/authStore";
 import { useLayers } from "@/hooks/useLayers";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 interface ToolbarProps {
   onUndo: () => void;
@@ -29,6 +31,7 @@ export function Toolbar({
   onOpen,
 }: ToolbarProps) {
   const { zoom, zoomIn, zoomOut, resetZoom } = useCanvasStore();
+  const { user } = useAuthStore();
   const { getActiveLayerCanvas } = useLayers();
 
   const handleClear = useCallback(() => {
@@ -55,7 +58,7 @@ export function Toolbar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
         </ToolbarButton>
-        <ToolbarButton onClick={onOpen} title="Open">
+        <ToolbarButton onClick={onOpen} title={user ? "Open Project" : "Open"}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
           </svg>
@@ -117,9 +120,12 @@ export function Toolbar({
       <div className="flex-1" />
 
       {/* Help */}
-      <div className="text-xs text-gray-400">
+      <div className="text-xs text-gray-400 mr-4">
         Press B for Brush, E for Eraser, [ ] for size
       </div>
+
+      {/* User Menu */}
+      {user && <UserMenu />}
     </div>
   );
 }
