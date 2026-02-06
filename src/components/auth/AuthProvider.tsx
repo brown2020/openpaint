@@ -36,23 +36,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       const url = window.location.href;
       if (checkIsSignInWithEmailLink(url)) {
-        setLoading(true);
-
-        // Get stored email or prompt user
-        let email = getStoredEmailForSignIn();
+        const email = getStoredEmailForSignIn();
         if (!email) {
-          // Could prompt user for email here if needed
-          email = window.prompt("Please provide your email for confirmation");
+          // No stored email — clear the link and let user sign in normally
+          window.history.replaceState(null, "", window.location.pathname);
+          return;
         }
 
-        if (email) {
-          try {
-            await signInWithEmailLink(email, url);
-            // Clear the URL to remove the sign-in link
-            window.history.replaceState(null, "", window.location.pathname);
-          } catch (error) {
-            setError(getAuthErrorMessage(error));
-          }
+        setLoading(true);
+        try {
+          await signInWithEmailLink(email, url);
+          window.history.replaceState(null, "", window.location.pathname);
+        } catch (error) {
+          setError(getAuthErrorMessage(error));
         }
       }
     };

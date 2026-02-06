@@ -101,7 +101,6 @@ interface CanvasStore {
   // Project Actions
   newProject: (size?: Size) => void;
   loadProjectLayers: (size: Size, layers: Layer[], activeLayerId: string) => void;
-  clearCanvas: () => void;
 }
 
 const DEFAULT_CANVAS_SIZE: Size = { width: 800, height: 600 };
@@ -384,15 +383,5 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       });
     },
 
-    clearCanvas: () => {
-      // The actual clearing happens in the component
-      // This triggers a re-render and history update
-      const { activeLayerId } = get();
-      get().addToHistory({
-        type: "canvas-clear",
-        layerId: activeLayerId,
-        snapshot: "",
-      });
-    },
   };
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import { useAuthStore } from "@/store/authStore";
 import { signOut } from "@/lib/firebase/auth";
 
@@ -59,9 +60,11 @@ export function UserMenu() {
         title={user.email || displayName}
       >
         {user.photoURL ? (
-          <img
+          <Image
             src={user.photoURL}
             alt={displayName}
+            width={32}
+            height={32}
             className="w-8 h-8 rounded-full"
           />
         ) : (

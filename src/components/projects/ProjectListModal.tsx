@@ -39,10 +39,15 @@ export function ProjectListModal({
     useState<ProjectDocument | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (!isOpen) return;
+    let active = true;
+    fetchProjects().finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => {
+      active = false;
       setLoading(true);
-      fetchProjects().finally(() => setLoading(false));
-    }
+    };
   }, [isOpen, fetchProjects]);
 
   const handleSelectProject = async (projectId: string) => {

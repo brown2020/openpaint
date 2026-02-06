@@ -107,7 +107,8 @@ export const useProjectStore = create<ProjectState>((set) => ({
   setPendingLayerLoads: (loads) => set({ pendingLayerLoads: loads }),
   clearPendingLayerLoad: (layerId) =>
     set((state) => {
-      const { [layerId]: _, ...rest } = state.pendingLayerLoads;
+      const rest = { ...state.pendingLayerLoads };
+      delete rest[layerId];
       return { pendingLayerLoads: rest };
     }),
 

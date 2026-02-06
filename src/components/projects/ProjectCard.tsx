@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import type { ProjectDocument } from "@/lib/firebase/firestore";
 
 interface ProjectCardProps {
@@ -22,6 +23,18 @@ export function ProjectCard({
   const [showMenu, setShowMenu] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(project.name);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showMenu]);
 
   const handleRename = () => {
     if (newName.trim() && newName !== project.name) {
@@ -55,12 +68,13 @@ export function ProjectCard({
       onClick={() => !isRenaming && onSelect(project.id)}
     >
       {/* Thumbnail */}
-      <div className="aspect-video bg-gray-100 flex items-center justify-center">
+      <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
         {project.thumbnailUrl ? (
-          <img
+          <Image
             src={project.thumbnailUrl}
             alt={project.name}
-            className="w-full h-full object-contain"
+            fill
+            className="object-contain"
           />
         ) : (
           <div className="text-gray-400">
@@ -106,7 +120,7 @@ export function ProjectCard({
       </div>
 
       {/* Menu button */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div ref={menuRef} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
           onClick={(e) => {
             e.stopPropagation();

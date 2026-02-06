@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useEffect } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
@@ -27,40 +27,27 @@ export default function Home() {
   const { currentProjectId, currentProjectName } = useProjectStore();
   const { canvasSize, newProject } = useCanvasStore();
   const { layers, addLayer, getLayerCanvas, compositeToCanvas } = useLayers();
-  const { canUndo, canRedo } = useHistory();
+  const { canUndo, canRedo, undo, redo } = useHistory();
   const { saveProject, createNewProject } = useProjects();
 
   // Initialize auto-save
   useAutoSave({ enabled: !!user && !!currentProjectId });
 
-  // Modal states
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showProjectList, setShowProjectList] = useState(false);
+  // Modal states — derived from auth/project state to avoid setState-in-effect
+  const showAuthModal = authInitialized && !user && isFirebaseConfigured;
+  const [projectListOpen, setProjectListOpen] = useState(false);
+  const showProjectList = !!user && (projectListOpen || (authInitialized && !currentProjectId));
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
-
-  // Show project picker after auth
-  useEffect(() => {
-    if (authInitialized && user && !currentProjectId) {
-      setShowProjectList(true);
-    }
-  }, [authInitialized, user, currentProjectId]);
-
-  // Show auth modal if not authenticated (only if Firebase is configured)
-  useEffect(() => {
-    if (authInitialized && !user && isFirebaseConfigured) {
-      setShowAuthModal(true);
-    }
-  }, [authInitialized, user]);
 
   // Handle undo
   const handleUndo = useCallback(() => {
-    console.log("Undo");
-  }, []);
+    undo(getLayerCanvas);
+  }, [undo, getLayerCanvas]);
 
   // Handle redo
   const handleRedo = useCallback(() => {
-    console.log("Redo");
-  }, []);
+    redo(getLayerCanvas);
+  }, [redo, getLayerCanvas]);
 
   // Handle save - now uses cloud save if authenticated
   const handleSave = useCallback(async () => {
@@ -125,7 +112,7 @@ export default function Home() {
   // Handle open file/project
   const handleOpen = useCallback(() => {
     if (user) {
-      setShowProjectList(true);
+      setProjectListOpen(true);
     } else {
       fileInputRef.current?.click();
     }
@@ -143,12 +130,17 @@ export default function Home() {
         img.onload = () => {
           newProject({ width: img.width, height: img.height });
 
+          // Read fresh state after store update; canvas registers after React paint
           setTimeout(() => {
-            const canvas = getLayerCanvas(layers[0]?.id);
-            if (canvas) {
-              const ctx = canvas.getContext("2d");
-              if (ctx) {
-                ctx.drawImage(img, 0, 0);
+            const { layers: currentLayers, layerCanvases } = useCanvasStore.getState();
+            const firstLayer = currentLayers[0];
+            if (firstLayer) {
+              const canvas = layerCanvases.get(firstLayer.id);
+              if (canvas) {
+                const ctx = canvas.getContext("2d");
+                if (ctx) {
+                  ctx.drawImage(img, 0, 0);
+                }
               }
             }
           }, 100);
@@ -159,7 +151,7 @@ export default function Home() {
 
       e.target.value = "";
     },
-    [newProject, getLayerCanvas, layers]
+    [newProject]
   );
 
   // Handle create new project
@@ -239,19 +231,14 @@ export default function Home() {
 
       {/* Auth Modal */}
       <AuthModal
-        isOpen={showAuthModal && !user}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
-          setShowAuthModal(false);
-          setShowProjectList(true);
-        }}
+        isOpen={showAuthModal}
         closable={false}
       />
 
       {/* Project List Modal */}
       <ProjectListModal
-        isOpen={showProjectList && !!user}
-        onClose={() => setShowProjectList(false)}
+        isOpen={showProjectList}
+        onClose={() => setProjectListOpen(false)}
         closable={!!currentProjectId}
       />
 

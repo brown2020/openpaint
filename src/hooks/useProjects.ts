@@ -11,7 +11,6 @@ import {
   updateProject as updateProjectInFirestore,
   deleteProject as deleteProjectFromFirestore,
   renameProject as renameProjectInFirestore,
-  type ProjectDocument,
   type LayerMetadata,
 } from "@/lib/firebase/firestore";
 import {
@@ -24,9 +23,6 @@ import {
 } from "@/lib/firebase/storage";
 import type { Size, Layer } from "@/types";
 
-/**
- * Hook for managing cloud projects
- */
 export function useProjects() {
   const { user } = useAuthStore();
   const {
@@ -52,11 +48,6 @@ export function useProjects() {
     clearPendingLayerLoad,
   } = useProjectStore();
 
-  const canvasStore = useCanvasStore();
-
-  /**
-   * Fetch all projects for the current user
-   */
   const fetchProjects = useCallback(async () => {
     if (!user) return;
 
@@ -72,9 +63,6 @@ export function useProjects() {
     }
   }, [user, setLoading, setError, setProjects]);
 
-  /**
-   * Create a new project
-   */
   const createNewProject = useCallback(
     async (name: string, size: Size) => {
       if (!user) return null;
@@ -83,7 +71,6 @@ export function useProjects() {
       setError(null);
 
       try {
-        // Create default layer
         const defaultLayer: LayerMetadata = {
           id: crypto.randomUUID(),
           name: "Layer 1",
@@ -91,10 +78,9 @@ export function useProjects() {
           opacity: 1,
           locked: false,
           blendMode: "source-over",
-          storageRef: "", // Will be set when saved
+          storageRef: "",
         };
 
-        // Create project in Firestore
         const projectId = await createProjectInFirestore(user.uid, {
           name,
           canvasSize: size,
@@ -102,14 +88,11 @@ export function useProjects() {
           activeLayerId: defaultLayer.id,
         });
 
-        // Get the created project
         const project = await getProject(projectId);
         if (project) {
           addProject(project);
           setCurrentProject(projectId, name);
-
-          // Initialize canvas with new project
-          canvasStore.newProject(size);
+          useCanvasStore.getState().newProject(size);
         }
 
         setLoading(false);
@@ -120,12 +103,9 @@ export function useProjects() {
         return null;
       }
     },
-    [user, setLoading, setError, addProject, setCurrentProject, canvasStore]
+    [user, setLoading, setError, addProject, setCurrentProject]
   );
 
-  /**
-   * Load a project from cloud storage
-   */
   const loadProject = useCallback(
     async (projectId: string) => {
       if (!user) return false;
@@ -135,7 +115,6 @@ export function useProjects() {
       setSyncStatus("syncing");
 
       try {
-        // Get project metadata
         const project = await getProject(projectId);
         if (!project || project.userId !== user.uid) {
           setError("Project not found or access denied.");
@@ -143,7 +122,6 @@ export function useProjects() {
           return false;
         }
 
-        // Create layer objects from project metadata
         const newLayers: Layer[] = project.layers.map((layerMeta) => ({
           id: layerMeta.id,
           name: layerMeta.name,
@@ -153,7 +131,6 @@ export function useProjects() {
           blendMode: layerMeta.blendMode as Layer["blendMode"],
         }));
 
-        // Collect layer storage refs for pending loads
         const layerRefs: Record<string, string> = {};
         project.layers.forEach((layer) => {
           if (layer.storageRef) {
@@ -161,14 +138,10 @@ export function useProjects() {
           }
         });
 
-        // Set pending layer loads - these will be loaded when canvases register
         setPendingLayerLoads(layerRefs);
-
-        // Set current project
         setCurrentProject(projectId, project.name);
 
-        // Load project layers into canvas store (this resets layerCanvases)
-        canvasStore.loadProjectLayers(
+        useCanvasStore.getState().loadProjectLayers(
           project.canvasSize,
           newLayers,
           project.activeLayerId
@@ -197,13 +170,9 @@ export function useProjects() {
       setCurrentProject,
       clearDirty,
       setPendingLayerLoads,
-      canvasStore,
     ]
   );
 
-  /**
-   * Save current project to cloud
-   */
   const saveProject = useCallback(async () => {
     if (!user || !currentProjectId) return false;
 
@@ -212,9 +181,8 @@ export function useProjects() {
 
     try {
       const { layers, activeLayerId, canvasSize, layerCanvases } =
-        canvasStore;
+        useCanvasStore.getState();
 
-      // Upload layer images
       const layerMetadata: LayerMetadata[] = [];
 
       for (const layer of layers) {
@@ -240,7 +208,6 @@ export function useProjects() {
         }
       }
 
-      // Generate and upload thumbnail
       const thumbnailCanvas = document.createElement("canvas");
       const thumbSize = 200;
       thumbnailCanvas.width = thumbSize;
@@ -248,11 +215,9 @@ export function useProjects() {
       const thumbCtx = thumbnailCanvas.getContext("2d");
 
       if (thumbCtx) {
-        // Fill with white background
         thumbCtx.fillStyle = "#ffffff";
         thumbCtx.fillRect(0, 0, thumbSize, thumbSize);
 
-        // Calculate aspect ratio
         const aspectRatio = canvasSize.width / canvasSize.height;
         let drawWidth = thumbSize;
         let drawHeight = thumbSize;
@@ -267,7 +232,6 @@ export function useProjects() {
           offsetX = (thumbSize - drawWidth) / 2;
         }
 
-        // Draw all visible layers
         for (const layer of layers) {
           if (layer.visible) {
             const canvas = layerCanvases.get(layer.id);
@@ -292,14 +256,12 @@ export function useProjects() {
           thumbBlob
         );
 
-        // Update Firestore
         await updateProjectInFirestore(currentProjectId, {
           layers: layerMetadata,
           activeLayerId,
           thumbnailUrl,
         });
 
-        // Update local project list
         updateProjectInList(currentProjectId, {
           layers: layerMetadata,
           activeLayerId,
@@ -321,7 +283,6 @@ export function useProjects() {
   }, [
     user,
     currentProjectId,
-    canvasStore,
     setSyncStatus,
     setError,
     setLastSyncTime,
@@ -329,9 +290,6 @@ export function useProjects() {
     updateProjectInList,
   ]);
 
-  /**
-   * Delete a project
-   */
   const deleteProject = useCallback(
     async (projectId: string) => {
       if (!user) return false;
@@ -340,16 +298,10 @@ export function useProjects() {
       setError(null);
 
       try {
-        // Delete from Firestore
         await deleteProjectFromFirestore(projectId);
-
-        // Delete storage files
         await deleteProjectFiles(user.uid, projectId);
-
-        // Remove from local list
         removeProject(projectId);
 
-        // If deleted current project, clear it
         if (currentProjectId === projectId) {
           setCurrentProject(null, null);
         }
@@ -365,9 +317,6 @@ export function useProjects() {
     [user, currentProjectId, setLoading, setError, removeProject, setCurrentProject]
   );
 
-  /**
-   * Rename a project
-   */
   const renameProject = useCallback(
     async (projectId: string, newName: string) => {
       if (!user) return false;
@@ -392,31 +341,6 @@ export function useProjects() {
     [user, currentProjectId, setError, updateProjectInList, setCurrentProject]
   );
 
-  /**
-   * Load layer images into canvases
-   */
-  const loadLayerImages = useCallback(
-    async (layerRefs: Map<string, string>) => {
-      const { layerCanvases } = canvasStore;
-
-      for (const [layerId, storageRef] of layerRefs) {
-        const canvas = layerCanvases.get(layerId);
-        if (canvas && storageRef) {
-          try {
-            const url = await downloadLayerImage(storageRef);
-            await loadImageToCanvas(url, canvas);
-          } catch (error) {
-            console.error(`Failed to load layer ${layerId}:`, error);
-          }
-        }
-      }
-    },
-    [canvasStore]
-  );
-
-  /**
-   * Load a single layer image when its canvas becomes available
-   */
   const loadPendingLayerImage = useCallback(
     async (layerId: string, canvas: HTMLCanvasElement) => {
       const storageRef = pendingLayerLoads[layerId];
@@ -428,13 +352,10 @@ export function useProjects() {
         clearPendingLayerLoad(layerId);
       } catch (error) {
         console.error(`Failed to load layer ${layerId}:`, error);
-        // Still clear the pending load to prevent infinite retries
         clearPendingLayerLoad(layerId);
-        // Set a user-friendly error message
         if (error instanceof Error && error.message.includes("CORS")) {
           setError(
-            "Failed to load project images. Firebase Storage CORS may not be configured. " +
-            "Please check the console for configuration details."
+            "Failed to load project images. Firebase Storage CORS may not be configured for your domain."
           );
         }
       }
@@ -443,7 +364,6 @@ export function useProjects() {
   );
 
   return {
-    // State
     projects,
     currentProjectId,
     currentProjectName,
@@ -451,15 +371,12 @@ export function useProjects() {
     lastSyncTime,
     isDirty,
     pendingLayerLoads,
-
-    // Actions
     fetchProjects,
     createNewProject,
     loadProject,
     saveProject,
     deleteProject,
     renameProject,
-    loadLayerImages,
     loadPendingLayerImage,
     markDirty,
   };

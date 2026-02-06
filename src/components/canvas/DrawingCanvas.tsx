@@ -192,7 +192,7 @@ export function DrawingCanvas() {
  * Custom brush cursor component
  */
 function BrushCursor({ size, zoom }: { size: number; zoom: number }) {
-  const { cursorPosition } = useCanvasStore();
+  const cursorPosition = useCanvasStore((s) => s.cursorPosition);
 
   if (!cursorPosition) return null;
 

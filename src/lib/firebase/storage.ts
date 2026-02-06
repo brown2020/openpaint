@@ -89,9 +89,8 @@ export async function deleteLayerImage(storagePath: string): Promise<void> {
   const storageRef = ref(ensureStorage(), storagePath);
   try {
     await deleteObject(storageRef);
-  } catch (error) {
+  } catch {
     // Ignore errors if file doesn't exist
-    console.warn("Could not delete layer image:", error);
   }
 }
 
@@ -112,23 +111,18 @@ export async function deleteProjectFiles(
 
     // Delete all layer files
     const deletePromises = layersList.items.map((itemRef) =>
-      deleteObject(itemRef).catch((e) =>
-        console.warn("Could not delete layer:", e)
-      )
+      deleteObject(itemRef).catch(() => {})
     );
 
     // Delete thumbnail
     const thumbnailRef = ref(st, `${projectPath}/thumbnail.png`);
     deletePromises.push(
-      deleteObject(thumbnailRef).catch((e) =>
-        console.warn("Could not delete thumbnail:", e)
-      )
+      deleteObject(thumbnailRef).catch(() => {})
     );
 
     await Promise.all(deletePromises);
-  } catch (error) {
+  } catch {
     // Ignore errors if folder doesn't exist
-    console.warn("Could not delete project files:", error);
   }
 }
 
@@ -174,14 +168,12 @@ export function loadImageToCanvas(
       ctx.drawImage(img, 0, 0);
       resolve();
     };
-    img.onerror = (event) => {
-      // Provide more helpful error message
-      console.error("Image load failed for URL:", url.substring(0, 100) + "...");
-      console.error(
-        "This is often caused by CORS configuration. Ensure Firebase Storage has CORS configured for your domain. " +
+    img.onerror = () => {
+      reject(new Error(
+        "Failed to load image from Firebase Storage. " +
+        "This may be caused by CORS configuration. " +
         "See: https://firebase.google.com/docs/storage/web/download-files#cors_configuration"
-      );
-      reject(new Error(`Failed to load image from Firebase Storage. Check console for CORS configuration details.`));
+      ));
     };
     img.src = url;
   });

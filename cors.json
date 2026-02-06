@@ -1,6 +1,9 @@
 [
   {
-    "origin": ["*"],
+    "origin": [
+      "http://localhost:3000",
+      "https://openpaint.vercel.app"
+    ],
     "method": ["GET"],
     "maxAgeSeconds": 3600
   }

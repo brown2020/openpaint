@@ -169,13 +169,3 @@ export async function renameProject(
   await updateProject(projectId, { name: newName });
 }
 
-/**
- * Check if user owns a project
- */
-export async function userOwnsProject(
-  userId: string,
-  projectId: string
-): Promise<boolean> {
-  const project = await getProject(projectId);
-  return project !== null && project.userId === userId;
-}
