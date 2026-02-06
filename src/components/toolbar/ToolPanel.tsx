@@ -36,6 +36,60 @@ function ToolButton({ tool, icon, label }: ToolButtonProps) {
 export function ToolPanel() {
   return (
     <div className="flex flex-col gap-1 p-2 bg-gray-100 rounded-lg">
+      {/* Selection tools */}
+      <ToolButton
+        tool="selection"
+        label="Selection"
+        icon={
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+          </svg>
+        }
+      />
+
+      <div className="border-t border-gray-300 my-1" />
+
+      {/* Shape tools */}
+      <ToolButton
+        tool="rectangle"
+        label="Rectangle"
+        icon={
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <rect x="4" y="6" width="16" height="12" strokeWidth={2} />
+          </svg>
+        }
+      />
+      <ToolButton
+        tool="ellipse"
+        label="Ellipse"
+        icon={
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <ellipse cx="12" cy="12" rx="8" ry="5" strokeWidth={2} />
+          </svg>
+        }
+      />
+      <ToolButton
+        tool="line"
+        label="Line"
+        icon={
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20L20 4" />
+          </svg>
+        }
+      />
+      <ToolButton
+        tool="polygon"
+        label="Polygon"
+        icon={
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3l8 5.5v7L12 21l-8-5.5v-7L12 3z" />
+          </svg>
+        }
+      />
+
+      <div className="border-t border-gray-300 my-1" />
+
+      {/* Drawing tools */}
       <ToolButton
         tool="brush"
         label="Brush"
@@ -57,36 +111,7 @@ export function ToolPanel() {
 
       <div className="border-t border-gray-300 my-1" />
 
-      <ToolButton
-        tool="line"
-        label="Line"
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 20L20 4" />
-          </svg>
-        }
-      />
-      <ToolButton
-        tool="rectangle"
-        label="Rectangle"
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <rect x="4" y="6" width="16" height="12" strokeWidth={2} />
-          </svg>
-        }
-      />
-      <ToolButton
-        tool="ellipse"
-        label="Ellipse"
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="12" rx="8" ry="5" strokeWidth={2} />
-          </svg>
-        }
-      />
-
-      <div className="border-t border-gray-300 my-1" />
-
+      {/* Utility tools */}
       <ToolButton
         tool="fill"
         label="Fill"
@@ -105,24 +130,12 @@ export function ToolPanel() {
           </svg>
         }
       />
-
-      <div className="border-t border-gray-300 my-1" />
-
       <ToolButton
         tool="text"
         label="Text"
         icon={
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
-          </svg>
-        }
-      />
-      <ToolButton
-        tool="selection"
-        label="Selection"
-        icon={
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} strokeDasharray="4 2" d="M4 6h16M4 18h16M4 6v12M20 6v12" />
           </svg>
         }
       />

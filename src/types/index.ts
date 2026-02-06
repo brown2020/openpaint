@@ -4,6 +4,7 @@ export type ToolType =
   | "line"
   | "rectangle"
   | "ellipse"
+  | "polygon"
   | "fill"
   | "eyedropper"
   | "text"

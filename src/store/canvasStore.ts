@@ -26,6 +26,13 @@ interface CanvasStore {
   // Text Tool Options
   textOptions: TextOptions;
 
+  // Vector Fill/Stroke Defaults
+  fillColor: string;
+  fillEnabled: boolean;
+  strokeColor: string;
+  strokeWidth: number;
+  strokeEnabled: boolean;
+
   // Canvas State
   canvasSize: Size;
   zoom: number;
@@ -58,6 +65,14 @@ interface CanvasStore {
   setBrushShape: (shape: BrushShape) => void;
   setShapeOptions: (options: Partial<ShapeOptions>) => void;
   setTextOptions: (options: Partial<TextOptions>) => void;
+
+  // Vector Fill/Stroke Actions
+  setFillColor: (color: string) => void;
+  setFillEnabled: (enabled: boolean) => void;
+  setStrokeColor: (color: string) => void;
+  setStrokeWidth: (width: number) => void;
+  setStrokeEnabled: (enabled: boolean) => void;
+  swapFillStroke: () => void;
 
   // Canvas Actions
   setCanvasSize: (size: Size) => void;
@@ -119,7 +134,7 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
 
   return {
     // Initial Tool State
-    activeTool: "brush",
+    activeTool: "selection",
     brushColor: "#000000",
     brushSize: 5,
     brushOpacity: 1,
@@ -140,6 +155,13 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
       fontStyle: "normal",
       textAlign: "left",
     },
+
+    // Initial Vector Fill/Stroke
+    fillColor: "#3b82f6",
+    fillEnabled: true,
+    strokeColor: "#000000",
+    strokeWidth: 2,
+    strokeEnabled: true,
 
     // Initial Canvas State
     canvasSize: DEFAULT_CANVAS_SIZE,
@@ -179,6 +201,18 @@ export const useCanvasStore = create<CanvasStore>((set, get) => {
     setTextOptions: (options) =>
       set((state) => ({
         textOptions: { ...state.textOptions, ...options },
+      })),
+
+    // Vector Fill/Stroke Actions
+    setFillColor: (color) => set({ fillColor: color }),
+    setFillEnabled: (enabled) => set({ fillEnabled: enabled }),
+    setStrokeColor: (color) => set({ strokeColor: color }),
+    setStrokeWidth: (width) => set({ strokeWidth: Math.max(0.5, Math.min(100, width)) }),
+    setStrokeEnabled: (enabled) => set({ strokeEnabled: enabled }),
+    swapFillStroke: () =>
+      set((state) => ({
+        fillColor: state.strokeColor,
+        strokeColor: state.fillColor,
       })),
 
     // Canvas Actions

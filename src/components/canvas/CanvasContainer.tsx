@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
-import { DrawingCanvas } from "./DrawingCanvas";
+import { VectorCanvas } from "./VectorCanvas";
 
 /**
  * Canvas container with zoom and pan support
@@ -73,7 +73,7 @@ export function CanvasContainer() {
       onMouseDown={handleMouseDown}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <DrawingCanvas />
+      <VectorCanvas />
     </div>
   );
 }

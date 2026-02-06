@@ -4,16 +4,17 @@ import { useCallback, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
-import { useLayers } from "@/hooks/useLayers";
-import { useHistory } from "@/hooks/useHistory";
+import { useDocumentStore } from "@/store/documentStore";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutoSave } from "@/hooks/useAutoSave";
+import { renderScene } from "@/lib/vector/renderer";
 import { CanvasContainer } from "@/components/canvas/CanvasContainer";
 import { Toolbar } from "@/components/toolbar/Toolbar";
 import { ToolPanel } from "@/components/toolbar/ToolPanel";
 import { ColorPicker } from "@/components/toolbar/ColorPicker";
 import { BrushSettings } from "@/components/toolbar/BrushSettings";
+import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { LayersPanel } from "@/components/panels/LayersPanel";
 import { StatusBar } from "@/components/panels/StatusBar";
 import { AuthModal } from "@/components/auth/AuthModal";
@@ -26,8 +27,14 @@ export default function Home() {
   const { user, initialized: authInitialized } = useAuthStore();
   const { currentProjectId, currentProjectName } = useProjectStore();
   const { canvasSize, newProject } = useCanvasStore();
-  const { layers, addLayer, getLayerCanvas, compositeToCanvas } = useLayers();
-  const { canUndo, canRedo, undo, redo } = useHistory();
+  const {
+    undo: docUndo,
+    redo: docRedo,
+    canUndo: docCanUndo,
+    canRedo: docCanRedo,
+    newDocument,
+    addLayer: addVectorLayer,
+  } = useDocumentStore();
   const { saveProject, createNewProject } = useProjects();
 
   // Initialize auto-save
@@ -39,15 +46,33 @@ export default function Home() {
   const showProjectList = !!user && (projectListOpen || (authInitialized && !currentProjectId));
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
 
-  // Handle undo
+  // Handle undo/redo — uses the vector document store
   const handleUndo = useCallback(() => {
-    undo(getLayerCanvas);
-  }, [undo, getLayerCanvas]);
+    docUndo();
+  }, [docUndo]);
 
-  // Handle redo
   const handleRedo = useCallback(() => {
-    redo(getLayerCanvas);
-  }, [redo, getLayerCanvas]);
+    docRedo();
+  }, [docRedo]);
+
+  // Render vector scene to a temp canvas (used for export & local save)
+  const renderToCanvas = useCallback(() => {
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = canvasSize.width;
+    tempCanvas.height = canvasSize.height;
+    const ctx = tempCanvas.getContext("2d");
+    if (!ctx) return tempCanvas;
+
+    // White background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+
+    // Render all vector layers
+    const docLayers = useDocumentStore.getState().layers;
+    renderScene(ctx, docLayers, canvasSize.width, canvasSize.height);
+
+    return tempCanvas;
+  }, [canvasSize]);
 
   // Handle save - now uses cloud save if authenticated
   const handleSave = useCallback(async () => {
@@ -56,24 +81,14 @@ export default function Home() {
     } else {
       // Fallback to localStorage
       try {
-        const tempCanvas = document.createElement("canvas");
-        tempCanvas.width = canvasSize.width;
-        tempCanvas.height = canvasSize.height;
-        compositeToCanvas(tempCanvas);
-
+        const docLayers = useDocumentStore.getState().layers;
         const projectData = {
-          version: "1.0.0",
+          version: "2.0.0",
           name: currentProjectName || "Untitled",
           createdAt: new Date().toISOString(),
           modifiedAt: new Date().toISOString(),
           canvasSize,
-          layers: layers.map((layer) => {
-            const layerCanvas = getLayerCanvas(layer.id);
-            return {
-              ...layer,
-              data: layerCanvas ? layerCanvas.toDataURL("image/png") : "",
-            };
-          }),
+          layers: docLayers,
         };
 
         localStorage.setItem("openpaint-project", JSON.stringify(projectData));
@@ -83,20 +98,16 @@ export default function Home() {
         alert("Failed to save project");
       }
     }
-  }, [user, currentProjectId, saveProject, canvasSize, layers, getLayerCanvas, compositeToCanvas, currentProjectName]);
+  }, [user, currentProjectId, saveProject, canvasSize, currentProjectName]);
 
-  // Handle export
+  // Handle export — renders vector scene to PNG
   const handleExport = useCallback(() => {
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = canvasSize.width;
-    tempCanvas.height = canvasSize.height;
-    compositeToCanvas(tempCanvas);
-
+    const tempCanvas = renderToCanvas();
     const link = document.createElement("a");
     link.download = `${currentProjectName || "openpaint-artwork"}.png`;
     link.href = tempCanvas.toDataURL("image/png");
     link.click();
-  }, [canvasSize, compositeToCanvas, currentProjectName]);
+  }, [renderToCanvas, currentProjectName]);
 
   // Handle new project
   const handleNew = useCallback(() => {
@@ -105,9 +116,10 @@ export default function Home() {
     } else {
       if (confirm("Create a new project? Unsaved changes will be lost.")) {
         newProject();
+        newDocument();
       }
     }
-  }, [user, newProject]);
+  }, [user, newProject, newDocument]);
 
   // Handle open file/project
   const handleOpen = useCallback(() => {
@@ -118,40 +130,34 @@ export default function Home() {
     }
   }, [user]);
 
-  // Handle file selection (for local files)
+  // Handle file selection (for local project files)
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
 
+      // Try to load as JSON project file
       const reader = new FileReader();
       reader.onload = (event) => {
-        const img = new Image();
-        img.onload = () => {
-          newProject({ width: img.width, height: img.height });
-
-          // Read fresh state after store update; canvas registers after React paint
-          setTimeout(() => {
-            const { layers: currentLayers, layerCanvases } = useCanvasStore.getState();
-            const firstLayer = currentLayers[0];
-            if (firstLayer) {
-              const canvas = layerCanvases.get(firstLayer.id);
-              if (canvas) {
-                const ctx = canvas.getContext("2d");
-                if (ctx) {
-                  ctx.drawImage(img, 0, 0);
-                }
-              }
+        try {
+          const data = JSON.parse(event.target?.result as string);
+          if (data.version && data.layers) {
+            newProject(data.canvasSize || { width: 800, height: 600 });
+            newDocument();
+            // If it's a v2 project with vector layers, load them
+            if (data.version.startsWith("2")) {
+              useDocumentStore.getState().loadDocument(data.layers, data.layers[0]?.id);
             }
-          }, 100);
-        };
-        img.src = event.target?.result as string;
+          }
+        } catch {
+          alert("Could not load project file.");
+        }
       };
-      reader.readAsDataURL(file);
+      reader.readAsText(file);
 
       e.target.value = "";
     },
-    [newProject]
+    [newProject, newDocument],
   );
 
   // Handle create new project
@@ -166,7 +172,7 @@ export default function Home() {
     onRedo: handleRedo,
     onSave: handleSave,
     onExport: handleExport,
-    onNewLayer: addLayer,
+    onNewLayer: addVectorLayer,
   });
 
   // Show loading while auth is initializing
@@ -187,7 +193,7 @@ export default function Home() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept=".json,application/json"
         onChange={handleFileChange}
         className="hidden"
       />
@@ -196,8 +202,8 @@ export default function Home() {
       <Toolbar
         onUndo={handleUndo}
         onRedo={handleRedo}
-        canUndo={canUndo()}
-        canRedo={canRedo()}
+        canUndo={docCanUndo()}
+        canRedo={docCanRedo()}
         onSave={handleSave}
         onExport={handleExport}
         onNew={handleNew}
@@ -220,9 +226,14 @@ export default function Home() {
         {/* Canvas area */}
         <CanvasContainer />
 
-        {/* Right sidebar - Layers */}
-        <div className="w-56 flex flex-col p-2 bg-gray-50 border-l border-gray-300">
-          <LayersPanel />
+        {/* Right sidebar - Properties + Layers */}
+        <div className="w-56 flex flex-col bg-gray-50 border-l border-gray-300 overflow-y-auto">
+          <div className="border-b border-gray-300">
+            <PropertiesPanel />
+          </div>
+          <div className="p-2 flex-1">
+            <LayersPanel />
+          </div>
         </div>
       </div>
 

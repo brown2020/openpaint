@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
+import { useDocumentStore } from "@/store/documentStore";
 import type { ToolType } from "@/types";
 
 interface KeyboardShortcutsOptions {
@@ -16,17 +17,24 @@ interface KeyboardShortcutsOptions {
 
 // Tool shortcuts mapping
 const TOOL_SHORTCUTS: Record<string, ToolType> = {
+  v: "selection",
+  r: "rectangle",
+  o: "ellipse",
+  l: "line",
   b: "brush",
   e: "eraser",
-  l: "line",
-  r: "rectangle",
-  u: "rectangle", // Alternative for rectangle
-  o: "ellipse",
   g: "fill",
   i: "eyedropper",
   t: "text",
-  m: "selection",
 };
+
+/** Get the keyboard shortcut letter for a tool (for UI display) */
+export function getToolShortcut(tool: ToolType): string | null {
+  for (const [key, t] of Object.entries(TOOL_SHORTCUTS)) {
+    if (t === tool) return key.toUpperCase();
+  }
+  return null;
+}
 
 /**
  * Hook for handling keyboard shortcuts
@@ -52,6 +60,10 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     zoomOut,
     resetZoom,
   } = useCanvasStore();
+
+  // Nudge debounce state — kept in refs to survive re-renders
+  const nudgeBeforeRef = useRef<Map<string, { x: number; y: number }> | null>(null);
+  const nudgeTimerRef = useRef<number | null>(null);
 
   /**
    * Handle keyboard shortcuts
@@ -107,13 +119,102 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         return;
       }
 
-      // Delete: Delete key
+      // Delete: Delete/Backspace — remove selected vector objects
       if (key === "delete" || key === "backspace") {
-        // Only if not in an input field (already checked above)
-        if (shift) {
-          e.preventDefault();
+        e.preventDefault();
+        const docStore = useDocumentStore.getState();
+        const selected = docStore.selectedObjectIds;
+        if (selected.length > 0) {
+          const ops = [];
+          for (const id of selected) {
+            const obj = docStore.getObject(id);
+            const layerId = docStore.getObjectLayerId(id);
+            if (obj && layerId) {
+              const layer = docStore.layers.find((l) => l.id === layerId);
+              const index = layer?.objects.findIndex((o) => o.id === id) ?? 0;
+              ops.push({ type: "remove-object" as const, layerId, object: obj, index });
+            }
+          }
+          // Remove objects (in reverse order to preserve indices)
+          for (const id of [...selected].reverse()) {
+            docStore.removeObject(id);
+          }
+          if (ops.length > 0) docStore.pushHistory("Delete objects", ops);
+        } else if (shift) {
           onDeleteLayer?.();
         }
+        return;
+      }
+
+      // Arrow keys: nudge selected objects
+      if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+        const docStore = useDocumentStore.getState();
+        if (docStore.selectedObjectIds.length > 0) {
+          e.preventDefault();
+
+          // Capture "before" transforms on first nudge of a sequence
+          if (nudgeBeforeRef.current === null) {
+            nudgeBeforeRef.current = new Map();
+            for (const id of docStore.selectedObjectIds) {
+              const obj = docStore.getObject(id);
+              if (obj) nudgeBeforeRef.current.set(id, { x: obj.transform.x, y: obj.transform.y });
+            }
+          }
+
+          const step = shift ? 10 : 1;
+          const dx = key === "arrowleft" ? -step : key === "arrowright" ? step : 0;
+          const dy = key === "arrowup" ? -step : key === "arrowdown" ? step : 0;
+          for (const id of docStore.selectedObjectIds) {
+            const obj = docStore.getObject(id);
+            if (obj) {
+              docStore.updateObject(id, {
+                transform: { ...obj.transform, x: obj.transform.x + dx, y: obj.transform.y + dy },
+              });
+            }
+          }
+
+          // Debounce: commit history after 500ms pause
+          if (nudgeTimerRef.current !== null) clearTimeout(nudgeTimerRef.current);
+          nudgeTimerRef.current = window.setTimeout(() => {
+            const ds = useDocumentStore.getState();
+            const before = nudgeBeforeRef.current;
+            if (before) {
+              const ops = [];
+              for (const id of ds.selectedObjectIds) {
+                const obj = ds.getObject(id);
+                const b = before.get(id);
+                const layerId = ds.getObjectLayerId(id);
+                if (obj && b && layerId) {
+                  ops.push({
+                    type: "modify-object" as const,
+                    objectId: id,
+                    layerId,
+                    before: { transform: { ...obj.transform, x: b.x, y: b.y } },
+                    after: { transform: { ...obj.transform } },
+                  });
+                }
+              }
+              if (ops.length > 0) ds.pushHistory("Nudge objects", ops);
+            }
+            nudgeBeforeRef.current = null;
+            nudgeTimerRef.current = null;
+          }, 500);
+        }
+        return;
+      }
+
+      // X: swap fill/stroke colors
+      if (!ctrl && !shift && !e.altKey && key === "x") {
+        e.preventDefault();
+        useCanvasStore.getState().swapFillStroke();
+        return;
+      }
+
+      // /: toggle fill on/off
+      if (!ctrl && !shift && !e.altKey && key === "/") {
+        e.preventDefault();
+        const cs = useCanvasStore.getState();
+        cs.setFillEnabled(!cs.fillEnabled);
         return;
       }
 
@@ -205,14 +306,3 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
   };
 }
 
-/**
- * Get the shortcut key for a tool
- */
-export function getToolShortcut(tool: ToolType): string | null {
-  for (const [key, t] of Object.entries(TOOL_SHORTCUTS)) {
-    if (t === tool) {
-      return key.toUpperCase();
-    }
-  }
-  return null;
-}

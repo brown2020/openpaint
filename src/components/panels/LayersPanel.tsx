@@ -1,27 +1,32 @@
 "use client";
 
-import { useLayers } from "@/hooks/useLayers";
+import { useDocumentStore } from "@/store/documentStore";
 
 /**
- * Layers panel for managing canvas layers
+ * Layers panel — manages vector document layers from the document store.
  */
 export function LayersPanel() {
-  const {
-    layers,
-    activeLayerId,
-    addLayer,
-    deleteLayer,
-    setActiveLayer,
-    toggleLayerVisibility,
-    toggleLayerLock,
-    setLayerOpacity,
-    moveLayerUp,
-    moveLayerDown,
-    duplicateLayer,
-    mergeDown,
-    canMergeDown,
-    canDeleteLayer,
-  } = useLayers();
+  const layers = useDocumentStore((s) => s.layers);
+  const activeLayerId = useDocumentStore((s) => s.activeLayerId);
+  const addLayer = useDocumentStore((s) => s.addLayer);
+  const removeLayer = useDocumentStore((s) => s.removeLayer);
+  const setActiveLayer = useDocumentStore((s) => s.setActiveLayer);
+  const updateLayer = useDocumentStore((s) => s.updateLayer);
+  const reorderLayer = useDocumentStore((s) => s.reorderLayer);
+
+  const canDeleteLayer = layers.length > 1;
+
+  const handleMoveUp = (index: number) => {
+    if (index < layers.length - 1) {
+      reorderLayer(index, index + 1);
+    }
+  };
+
+  const handleMoveDown = (index: number) => {
+    if (index > 0) {
+      reorderLayer(index, index - 1);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-100 rounded-lg overflow-hidden">
@@ -30,7 +35,7 @@ export function LayersPanel() {
         <span className="text-sm font-medium text-gray-700">Layers</span>
         <div className="flex gap-1">
           <button
-            onClick={addLayer}
+            onClick={() => addLayer()}
             className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-300 rounded"
             title="Add Layer"
           >
@@ -39,10 +44,10 @@ export function LayersPanel() {
             </svg>
           </button>
           <button
-            onClick={() => deleteLayer(activeLayerId)}
-            disabled={!canDeleteLayer()}
+            onClick={() => removeLayer(activeLayerId)}
+            disabled={!canDeleteLayer}
             className={`p-1 rounded ${
-              canDeleteLayer()
+              canDeleteLayer
                 ? "text-gray-600 hover:text-red-600 hover:bg-gray-300"
                 : "text-gray-400 cursor-not-allowed"
             }`}
@@ -55,10 +60,13 @@ export function LayersPanel() {
         </div>
       </div>
 
-      {/* Layer list */}
+      {/* Layer list — rendered top-to-bottom = highest layer first */}
       <div className="flex-1 overflow-y-auto">
-        {[...layers].reverse().map((layer, reversedIndex) => {
+        {[...layers].reverse().map((layer) => {
           const isActive = layer.id === activeLayerId;
+          const actualIndex = layers.findIndex((l) => l.id === layer.id);
+          const isTop = actualIndex === layers.length - 1;
+          const isBottom = actualIndex === 0;
 
           return (
             <div
@@ -72,12 +80,12 @@ export function LayersPanel() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleLayerVisibility(layer.id);
+                  updateLayer(layer.id, { visible: !layer.visible });
                 }}
                 className={`p-1 rounded ${
                   layer.visible ? "text-gray-700" : "text-gray-400"
                 }`}
-                title={layer.visible ? "Hide Layer" : "Show Layer"}
+                title={layer.visible ? "Hide" : "Show"}
               >
                 {layer.visible ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,12 +103,12 @@ export function LayersPanel() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  toggleLayerLock(layer.id);
+                  updateLayer(layer.id, { locked: !layer.locked });
                 }}
                 className={`p-1 rounded ${
                   layer.locked ? "text-yellow-600" : "text-gray-400"
                 }`}
-                title={layer.locked ? "Unlock Layer" : "Lock Layer"}
+                title={layer.locked ? "Unlock" : "Lock"}
               >
                 {layer.locked ? (
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,26 +121,24 @@ export function LayersPanel() {
                 )}
               </button>
 
-              {/* Layer name */}
-              <span className="flex-1 text-sm truncate">{layer.name}</span>
+              {/* Layer name + object count */}
+              <div className="flex-1 min-w-0">
+                <span className="text-sm truncate block">{layer.name}</span>
+                <span className="text-[10px] text-gray-400">
+                  {layer.objects.length} object{layer.objects.length !== 1 ? "s" : ""}
+                </span>
+              </div>
 
-              {/* Opacity */}
-              <span className="text-xs text-gray-500">
-                {Math.round(layer.opacity * 100)}%
-              </span>
-
-              {/* Layer actions */}
+              {/* Move up/down */}
               <div className="flex gap-1">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    moveLayerUp(layer.id);
+                    handleMoveUp(actualIndex);
                   }}
-                  disabled={reversedIndex === 0}
+                  disabled={isTop}
                   className={`p-1 rounded ${
-                    reversedIndex === 0
-                      ? "text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
+                    isTop ? "text-gray-300" : "text-gray-500 hover:text-gray-700"
                   }`}
                   title="Move Up"
                 >
@@ -143,13 +149,11 @@ export function LayersPanel() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    moveLayerDown(layer.id);
+                    handleMoveDown(actualIndex);
                   }}
-                  disabled={reversedIndex === layers.length - 1}
+                  disabled={isBottom}
                   className={`p-1 rounded ${
-                    reversedIndex === layers.length - 1
-                      ? "text-gray-300"
-                      : "text-gray-500 hover:text-gray-700"
+                    isBottom ? "text-gray-300" : "text-gray-500 hover:text-gray-700"
                   }`}
                   title="Move Down"
                 >
@@ -163,8 +167,8 @@ export function LayersPanel() {
         })}
       </div>
 
-      {/* Layer opacity slider for active layer */}
-      {layers.find(l => l.id === activeLayerId) && (
+      {/* Layer opacity slider */}
+      {layers.find((l) => l.id === activeLayerId) && (
         <div className="px-3 py-2 border-t border-gray-300 bg-gray-200">
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-600">Opacity</label>
@@ -172,39 +176,25 @@ export function LayersPanel() {
               type="range"
               min="0"
               max="100"
-              value={Math.round((layers.find(l => l.id === activeLayerId)?.opacity || 1) * 100)}
-              onChange={(e) => setLayerOpacity(activeLayerId, Number(e.target.value) / 100)}
+              value={Math.round(
+                (layers.find((l) => l.id === activeLayerId)?.opacity ?? 1) * 100,
+              )}
+              onChange={(e) =>
+                updateLayer(activeLayerId, {
+                  opacity: Number(e.target.value) / 100,
+                })
+              }
               className="flex-1"
             />
             <span className="text-xs text-gray-600 w-8 text-right">
-              {Math.round((layers.find(l => l.id === activeLayerId)?.opacity || 1) * 100)}%
+              {Math.round(
+                (layers.find((l) => l.id === activeLayerId)?.opacity ?? 1) * 100,
+              )}
+              %
             </span>
           </div>
         </div>
       )}
-
-      {/* Layer actions */}
-      <div className="flex gap-1 px-2 py-2 border-t border-gray-300 bg-gray-200">
-        <button
-          onClick={() => duplicateLayer(activeLayerId)}
-          className="flex-1 text-xs py-1 px-2 bg-white border border-gray-300 rounded hover:bg-gray-50"
-          title="Duplicate Layer"
-        >
-          Duplicate
-        </button>
-        <button
-          onClick={mergeDown}
-          disabled={!canMergeDown(activeLayerId)}
-          className={`flex-1 text-xs py-1 px-2 rounded border ${
-            canMergeDown(activeLayerId)
-              ? "bg-white border-gray-300 hover:bg-gray-50"
-              : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
-          }`}
-          title="Merge Down"
-        >
-          Merge Down
-        </button>
-      </div>
     </div>
   );
 }
