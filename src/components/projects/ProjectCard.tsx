@@ -74,6 +74,7 @@ export function ProjectCard({
             src={project.thumbnailUrl}
             alt={project.name}
             fill
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="object-contain"
           />
         ) : (

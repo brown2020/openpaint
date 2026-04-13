@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
+import { useDocumentStore } from "@/store/documentStore";
 import {
   createProject as createProjectInFirestore,
   getUserProjects,
@@ -21,7 +22,9 @@ import {
   canvasToBlob,
   loadImageToCanvas,
 } from "@/lib/firebase/storage";
-import type { Size, Layer } from "@/types";
+import { renderScene } from "@/lib/vector/renderer";
+import { createLayer as createVectorLayer, type VectorLayer } from "@/types/vector";
+import type { Size } from "@/types";
 
 export function useProjects() {
   const { user } = useAuthStore();
@@ -93,6 +96,7 @@ export function useProjects() {
           addProject(project);
           setCurrentProject(projectId, name);
           useCanvasStore.getState().newProject(size);
+          useDocumentStore.getState().newDocument(size.width, size.height);
         }
 
         setLoading(false);
@@ -122,29 +126,26 @@ export function useProjects() {
           return false;
         }
 
-        const newLayers: Layer[] = project.layers.map((layerMeta) => ({
-          id: layerMeta.id,
-          name: layerMeta.name,
-          visible: layerMeta.visible,
-          opacity: layerMeta.opacity,
-          locked: layerMeta.locked,
-          blendMode: layerMeta.blendMode as Layer["blendMode"],
-        }));
+        let vectorLayers: VectorLayer[];
 
-        const layerRefs: Record<string, string> = {};
-        project.layers.forEach((layer) => {
-          if (layer.storageRef) {
-            layerRefs[layer.id] = layer.storageRef;
-          }
-        });
+        if (project.vectorLayers && Array.isArray(project.vectorLayers) && project.vectorLayers.length > 0) {
+          vectorLayers = project.vectorLayers as VectorLayer[];
+        } else {
+          vectorLayers = project.layers.map((layerMeta) => {
+            const vl = createVectorLayer(layerMeta.id, layerMeta.name);
+            vl.visible = layerMeta.visible;
+            vl.locked = layerMeta.locked;
+            vl.opacity = layerMeta.opacity;
+            return vl;
+          });
+        }
 
-        setPendingLayerLoads(layerRefs);
         setCurrentProject(projectId, project.name);
 
-        useCanvasStore.getState().loadProjectLayers(
-          project.canvasSize,
-          newLayers,
-          project.activeLayerId
+        useCanvasStore.getState().setCanvasSize(project.canvasSize);
+        useDocumentStore.getState().loadDocument(
+          vectorLayers,
+          project.activeLayerId || vectorLayers[0]?.id
         );
 
         setSyncStatus("synced");
@@ -169,7 +170,6 @@ export function useProjects() {
       setLastSyncTime,
       setCurrentProject,
       clearDirty,
-      setPendingLayerLoads,
     ]
   );
 
@@ -180,94 +180,101 @@ export function useProjects() {
     setError(null);
 
     try {
-      const { layers, activeLayerId, canvasSize, layerCanvases } =
-        useCanvasStore.getState();
+      const { canvasSize } = useCanvasStore.getState();
+      const docState = useDocumentStore.getState();
+      const docLayers = docState.layers;
+      const activeLayerId = docState.activeLayerId;
 
       const layerMetadata: LayerMetadata[] = [];
 
-      for (const layer of layers) {
-        const canvas = layerCanvases.get(layer.id);
-        if (canvas) {
-          const blob = await canvasToBlob(canvas);
-          const storageRef = await uploadLayerImage(
-            user.uid,
-            currentProjectId,
-            layer.id,
-            blob
-          );
+      for (const layer of docLayers) {
+        const layerCanvas = document.createElement("canvas");
+        layerCanvas.width = canvasSize.width;
+        layerCanvas.height = canvasSize.height;
+        const layerCtx = layerCanvas.getContext("2d");
+        if (!layerCtx) continue;
 
-          layerMetadata.push({
-            id: layer.id,
-            name: layer.name,
-            visible: layer.visible,
-            opacity: layer.opacity,
-            locked: layer.locked,
-            blendMode: layer.blendMode,
-            storageRef,
-          });
-        }
-      }
+        renderScene(layerCtx, [{ ...layer, visible: true }], canvasSize.width, canvasSize.height);
 
-      const thumbnailCanvas = document.createElement("canvas");
-      const thumbSize = 200;
-      thumbnailCanvas.width = thumbSize;
-      thumbnailCanvas.height = thumbSize;
-      const thumbCtx = thumbnailCanvas.getContext("2d");
-
-      if (thumbCtx) {
-        thumbCtx.fillStyle = "#ffffff";
-        thumbCtx.fillRect(0, 0, thumbSize, thumbSize);
-
-        const aspectRatio = canvasSize.width / canvasSize.height;
-        let drawWidth = thumbSize;
-        let drawHeight = thumbSize;
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (aspectRatio > 1) {
-          drawHeight = thumbSize / aspectRatio;
-          offsetY = (thumbSize - drawHeight) / 2;
-        } else {
-          drawWidth = thumbSize * aspectRatio;
-          offsetX = (thumbSize - drawWidth) / 2;
-        }
-
-        for (const layer of layers) {
-          if (layer.visible) {
-            const canvas = layerCanvases.get(layer.id);
-            if (canvas) {
-              thumbCtx.globalAlpha = layer.opacity;
-              thumbCtx.drawImage(
-                canvas,
-                offsetX,
-                offsetY,
-                drawWidth,
-                drawHeight
-              );
-            }
-          }
-        }
-        thumbCtx.globalAlpha = 1;
-
-        const thumbBlob = await canvasToBlob(thumbnailCanvas);
-        const thumbnailUrl = await uploadThumbnail(
+        const blob = await canvasToBlob(layerCanvas);
+        const storageRef = await uploadLayerImage(
           user.uid,
           currentProjectId,
-          thumbBlob
+          layer.id,
+          blob
         );
 
-        await updateProjectInFirestore(currentProjectId, {
-          layers: layerMetadata,
-          activeLayerId,
-          thumbnailUrl,
-        });
-
-        updateProjectInList(currentProjectId, {
-          layers: layerMetadata,
-          activeLayerId,
-          thumbnailUrl,
+        layerMetadata.push({
+          id: layer.id,
+          name: layer.name,
+          visible: layer.visible,
+          opacity: layer.opacity,
+          locked: layer.locked,
+          blendMode: "source-over",
+          storageRef,
         });
       }
+
+      let thumbnailUrl: string | null = null;
+      try {
+        const thumbnailCanvas = document.createElement("canvas");
+        const thumbSize = 200;
+        thumbnailCanvas.width = thumbSize;
+        thumbnailCanvas.height = thumbSize;
+        const thumbCtx = thumbnailCanvas.getContext("2d");
+
+        if (thumbCtx) {
+          thumbCtx.fillStyle = "#ffffff";
+          thumbCtx.fillRect(0, 0, thumbSize, thumbSize);
+
+          const aspectRatio = canvasSize.width / canvasSize.height;
+          let drawWidth = thumbSize;
+          let drawHeight = thumbSize;
+          let offsetX = 0;
+          let offsetY = 0;
+
+          if (aspectRatio > 1) {
+            drawHeight = thumbSize / aspectRatio;
+            offsetY = (thumbSize - drawHeight) / 2;
+          } else {
+            drawWidth = thumbSize * aspectRatio;
+            offsetX = (thumbSize - drawWidth) / 2;
+          }
+
+          const fullCanvas = document.createElement("canvas");
+          fullCanvas.width = canvasSize.width;
+          fullCanvas.height = canvasSize.height;
+          const fullCtx = fullCanvas.getContext("2d");
+          if (fullCtx) {
+            renderScene(fullCtx, docLayers, canvasSize.width, canvasSize.height);
+            thumbCtx.drawImage(fullCanvas, offsetX, offsetY, drawWidth, drawHeight);
+          }
+
+          const thumbBlob = await canvasToBlob(thumbnailCanvas);
+          thumbnailUrl = await uploadThumbnail(
+            user.uid,
+            currentProjectId,
+            thumbBlob
+          );
+        }
+      } catch (thumbError) {
+        console.error("Failed to generate thumbnail:", thumbError);
+      }
+
+      const serializedLayers = JSON.parse(JSON.stringify(docLayers));
+
+      await updateProjectInFirestore(currentProjectId, {
+        layers: layerMetadata,
+        activeLayerId,
+        thumbnailUrl,
+        vectorLayers: serializedLayers,
+      });
+
+      updateProjectInList(currentProjectId, {
+        layers: layerMetadata,
+        activeLayerId,
+        thumbnailUrl,
+      });
 
       setSyncStatus("synced");
       setLastSyncTime(Date.now());
