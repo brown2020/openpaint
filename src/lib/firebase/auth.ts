@@ -1,3 +1,5 @@
+import { deleteCookie } from "cookies-next";
+
 import {
   signInWithPopup,
   GoogleAuthProvider,
@@ -117,6 +119,16 @@ export function getStoredEmailForSignIn(): string | null {
  */
 export async function signOut(): Promise<void> {
   if (!auth) return;
+
+  // Explicitly delete auth cookies before signing out
+  deleteCookie("authToken", { path: "/" });
+  deleteCookie("__session", { path: "/" });
+
+  // Clear localStorage auth artifacts
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem("emailForSignIn");
+  }
+
   await firebaseSignOut(auth);
 }
 
