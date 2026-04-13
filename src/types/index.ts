@@ -83,10 +83,3 @@ export interface TextOptions {
   fontStyle: "normal" | "italic";
   textAlign: "left" | "center" | "right";
 }
-
-export interface RGBA {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-}
