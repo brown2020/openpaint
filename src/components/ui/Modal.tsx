@@ -33,11 +33,11 @@ export function Modal({
   );
 
   useEffect(() => {
-    if (isOpen && onClose) {
+    if (!isOpen) return;
+
+    document.body.style.overflow = "hidden";
+    if (onClose) {
       document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-    } else if (isOpen) {
-      document.body.style.overflow = "hidden";
     }
 
     return () => {

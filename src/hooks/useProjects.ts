@@ -47,7 +47,6 @@ export function useProjects() {
     setLastSyncTime,
     markDirty,
     clearDirty,
-    setPendingLayerLoads,
     clearPendingLayerLoad,
   } = useProjectStore();
 
