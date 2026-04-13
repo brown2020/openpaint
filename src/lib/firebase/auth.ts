@@ -6,6 +6,7 @@ import {
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink as firebaseSignInWithEmailLink,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   type User,
@@ -60,6 +61,13 @@ export async function signInWithEmail(
 ): Promise<User> {
   const result = await signInWithEmailAndPassword(ensureAuth(), email, password);
   return result.user;
+}
+
+/**
+ * Send a password reset email
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  await firebaseSendPasswordResetEmail(ensureAuth(), email);
 }
 
 /**

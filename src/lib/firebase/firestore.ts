@@ -51,6 +51,7 @@ export interface ProjectDocument {
   layers: LayerMetadata[];
   activeLayerId: string;
   version: string;
+  vectorLayers?: unknown[];
 }
 
 /**
@@ -71,6 +72,7 @@ export interface UpdateProjectData {
   thumbnailUrl?: string | null;
   layers?: LayerMetadata[];
   activeLayerId?: string;
+  vectorLayers?: unknown[];
 }
 
 const PROJECTS_COLLECTION = "projects";
