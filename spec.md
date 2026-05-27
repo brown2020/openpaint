@@ -65,7 +65,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Undo/redo | **Working** | Operation-based, max 200, on `documentStore` |
 | Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
 | PNG export | **Working** | White background composite |
-| SVG export | **Not implemented** | |
+| SVG export | **Working** | Toolbar + Ctrl+Shift+E; rect, ellipse, line, path, polygon, text, group |
 | Pen tool (P) | **Not implemented** | No tool button |
 | Direct selection (A) | **Not implemented** | |
 | Groups UI | **Not implemented** | Model + renderer support `group` |
@@ -209,19 +209,31 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 ---
 
-### Milestone 5 — SVG export
+### Milestone 5 — SVG export ✅
 
 **User value:** Users can hand off vectors to other tools and the web.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Export menu or toolbar action downloads `.svg` of visible document.
-- Supports at least: rect, ellipse, line, path, text (as `<text>`), groups.
-- Solid fills and strokes map correctly; transforms applied.
+- [x] Export menu or toolbar action downloads `.svg` of visible document.
+- [x] Supports at least: rect, ellipse, line, path, text (as `<text>`), groups.
+- [x] Solid fills and strokes map correctly; transforms applied.
 
-**Implementation intent:** New `src/lib/vector/svgExport.ts` walking scene graph; share types with renderer.
+**Implementation note:** `exportDocumentToSvg()` + `downloadSvgFile()` in `src/lib/vector/svgExport.ts`; toolbar SVG button and Ctrl+Shift+E; PNG export remains Ctrl+E.
+
+### Milestone 5 follow-up — SVG gradient fills and per-corner radii
+
+**User value:** Exported SVG matches on-canvas gradient and rounded-rectangle appearance.
+
+**Acceptance criteria:**
+
+- Linear/radial gradient fills export as SVG `<defs>` gradients.
+- Rectangle corner radii export per-corner (not single `rx` approximation).
 
 ---
+
 
 ### Milestone 6 — Pen tool (basic)
 

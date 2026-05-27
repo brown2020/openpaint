@@ -10,6 +10,7 @@ interface KeyboardShortcutsOptions {
   onRedo?: () => void;
   onSave?: () => void;
   onExport?: () => void;
+  onExportSvg?: () => void;
   onNewLayer?: () => void;
   onDeleteLayer?: () => void;
   enabled?: boolean;
@@ -45,6 +46,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     onRedo,
     onSave,
     onExport,
+    onExportSvg,
     onNewLayer,
     onDeleteLayer,
     enabled = true,
@@ -105,10 +107,17 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         return;
       }
 
-      // Export: Ctrl+E
+      // Export PNG: Ctrl+E
       if (ctrl && !shift && key === "e") {
         e.preventDefault();
         onExport?.();
+        return;
+      }
+
+      // Export SVG: Ctrl+Shift+E
+      if (ctrl && shift && key === "e") {
+        e.preventDefault();
+        onExportSvg?.();
         return;
       }
 
@@ -278,6 +287,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       onRedo,
       onSave,
       onExport,
+      onExportSvg,
       onNewLayer,
       onDeleteLayer,
       setActiveTool,

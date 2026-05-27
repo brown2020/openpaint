@@ -9,6 +9,7 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { renderScene } from "@/lib/vector/renderer";
+import { downloadSvgFile, exportDocumentToSvg } from "@/lib/vector/svgExport";
 import { CanvasContainer } from "@/components/canvas/CanvasContainer";
 import { Toolbar } from "@/components/toolbar/Toolbar";
 import { ToolPanel } from "@/components/toolbar/ToolPanel";
@@ -157,14 +158,26 @@ export default function Home() {
     }
   }, [user, currentProjectId, saveProject, canvasSize, currentProjectName]);
 
-  // Handle export — renders vector scene to PNG
-  const handleExport = useCallback(() => {
+  const exportBaseName = currentProjectName || "openpaint-artwork";
+
+  // Export PNG — rasterized composite
+  const handleExportPng = useCallback(() => {
     const tempCanvas = renderToCanvas();
     const link = document.createElement("a");
-    link.download = `${currentProjectName || "openpaint-artwork"}.png`;
+    link.download = `${exportBaseName}.png`;
     link.href = tempCanvas.toDataURL("image/png");
     link.click();
-  }, [renderToCanvas, currentProjectName]);
+  }, [renderToCanvas, exportBaseName]);
+
+  // Export SVG — vector scene graph
+  const handleExportSvg = useCallback(() => {
+    const docLayers = useDocumentStore.getState().layers;
+    const svg = exportDocumentToSvg(docLayers, {
+      width: canvasSize.width,
+      height: canvasSize.height,
+    });
+    downloadSvgFile(svg, exportBaseName);
+  }, [canvasSize, exportBaseName]);
 
   // Handle new project
   const handleNew = useCallback(() => {
@@ -234,7 +247,8 @@ export default function Home() {
     onUndo: handleUndo,
     onRedo: handleRedo,
     onSave: handleSave,
-    onExport: handleExport,
+    onExport: handleExportPng,
+    onExportSvg: handleExportSvg,
     onNewLayer: addVectorLayer,
   });
 
@@ -277,7 +291,8 @@ export default function Home() {
         canUndo={docCanUndo()}
         canRedo={docCanRedo()}
         onSave={handleSave}
-        onExport={handleExport}
+        onExportPng={handleExportPng}
+        onExportSvg={handleExportSvg}
         onNew={handleNew}
         onOpen={handleOpen}
         onSignIn={!user && isFirebaseConfigured ? () => openAuthModal() : undefined}

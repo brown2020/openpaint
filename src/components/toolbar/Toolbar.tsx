@@ -12,7 +12,8 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onSave: () => void;
-  onExport: () => void;
+  onExportPng: () => void;
+  onExportSvg: () => void;
   onNew: () => void;
   onOpen: () => void;
   onSignIn?: () => void;
@@ -28,7 +29,8 @@ export function Toolbar({
   canUndo,
   canRedo,
   onSave,
-  onExport,
+  onExportPng,
+  onExportSvg,
   onNew,
   onOpen,
   onSignIn,
@@ -71,9 +73,14 @@ export function Toolbar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
         </ToolbarButton>
-        <ToolbarButton onClick={onExport} title="Export (Ctrl+E)">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <ToolbarButton onClick={onExportPng} title="Export PNG (Ctrl+E)" aria-label="Export PNG">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        </ToolbarButton>
+        <ToolbarButton onClick={onExportSvg} title="Export SVG (Ctrl+Shift+E)" aria-label="Export SVG">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
         </ToolbarButton>
       </div>
