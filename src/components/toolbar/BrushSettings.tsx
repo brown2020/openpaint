@@ -1,6 +1,7 @@
 "use client";
 
 import { useCanvasStore } from "@/store/canvasStore";
+import { TextSettings } from "./TextSettings";
 
 /**
  * Tool settings panel — shows vector-relevant controls based on active tool.
@@ -109,9 +110,13 @@ export function BrushSettings() {
         </p>
       )}
       {activeTool === "text" && (
-        <p className="text-xs text-gray-400">
-          Click on the canvas to place text.
-        </p>
+        <>
+          <TextSettings />
+          <p className="text-xs text-gray-400">
+            Click on the canvas to place text. Double-click text to edit with
+            the selection tool.
+          </p>
+        </>
       )}
     </div>
   );
