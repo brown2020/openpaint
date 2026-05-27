@@ -11,9 +11,31 @@ import type {
   PolygonObject,
   TextObject,
   GroupObject,
+  ImageObject,
   BoundingBox,
   Point2D,
 } from "@/types/vector";
+
+/** Dispatched when a raster image finishes decoding (legacy imports) */
+export const OPENPAINT_IMAGE_LOADED = "openpaint-image-loaded";
+
+const imageCache = new Map<string, HTMLImageElement>();
+
+function getCachedImage(src: string): HTMLImageElement {
+  let img = imageCache.get(src);
+  if (!img) {
+    img = new Image();
+    img.crossOrigin = "anonymous";
+    img.addEventListener("load", () => {
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(OPENPAINT_IMAGE_LOADED));
+      }
+    });
+    img.src = src;
+    imageCache.set(src, img);
+  }
+  return img;
+}
 
 /** Options for the main render call */
 export interface RenderOptions {
@@ -119,6 +141,9 @@ function renderObject(ctx: CanvasRenderingContext2D, obj: VectorObject): void {
     case "group":
       renderGroup(ctx, obj);
       break;
+    case "image":
+      renderImage(ctx, obj);
+      break;
   }
 
   ctx.restore();
@@ -203,6 +228,13 @@ function renderText(ctx: CanvasRenderingContext2D, obj: TextObject): void {
 function renderGroup(ctx: CanvasRenderingContext2D, obj: GroupObject): void {
   for (const child of obj.children) {
     renderObject(ctx, child);
+  }
+}
+
+function renderImage(ctx: CanvasRenderingContext2D, obj: ImageObject): void {
+  const img = getCachedImage(obj.src);
+  if (img.complete && img.naturalWidth > 0) {
+    ctx.drawImage(img, 0, 0, obj.width, obj.height);
   }
 }
 
@@ -471,6 +503,8 @@ function getLocalBoundsForSelection(obj: VectorObject): BoundingBox {
       };
     case "group":
       return { x: 0, y: 0, width: 0, height: 0 };
+    case "image":
+      return { x: 0, y: 0, width: obj.width, height: obj.height };
   }
 }
 

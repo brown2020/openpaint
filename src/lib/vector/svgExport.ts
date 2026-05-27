@@ -9,6 +9,7 @@ import type {
   RectangleObject,
   StrokeStyle,
   TextObject,
+  ImageObject,
   Transform2D,
   VectorLayer,
   VectorObject,
@@ -316,6 +317,13 @@ function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
         .map((child) => objectToSvg(ctx, child))
         .join("\n");
       return `<g${transform}${op}>\n${inner}\n</g>`;
+    }
+    case "image": {
+      const image = obj as ImageObject;
+      return (
+        `<image x="0" y="0" width="${image.width}" height="${image.height}"` +
+        ` href="${escapeXml(image.src)}" preserveAspectRatio="none"${transform}${op} />`
+      );
     }
     default:
       return "";

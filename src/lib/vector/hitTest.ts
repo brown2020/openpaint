@@ -72,6 +72,7 @@ function hitTestObject(
 
   switch (obj.type) {
     case "rectangle":
+    case "image":
       return hitTestRectangle(local, obj.width, obj.height);
 
     case "ellipse":

@@ -21,7 +21,12 @@ import {
   canvasToBlob,
 } from "@/lib/firebase/storage";
 import { renderScene } from "@/lib/vector/renderer";
-import { createLayer as createVectorLayer, type VectorLayer } from "@/types/vector";
+import {
+  buildEmptyVectorLayersFromMetadata,
+  fetchLegacyRasterLayers,
+  projectNeedsLegacyRasterImport,
+} from "@/lib/vector/legacyProjectImport";
+import type { VectorLayer } from "@/types/vector";
 import type { Size } from "@/types";
 
 export function useProjects() {
@@ -125,16 +130,21 @@ export function useProjects() {
 
         let vectorLayers: VectorLayer[];
 
-        if (project.vectorLayers && Array.isArray(project.vectorLayers) && project.vectorLayers.length > 0) {
+        if (
+          projectNeedsLegacyRasterImport(project.vectorLayers, project.layers)
+        ) {
+          vectorLayers = await fetchLegacyRasterLayers(
+            project.layers,
+            project.canvasSize,
+          );
+        } else if (
+          project.vectorLayers &&
+          Array.isArray(project.vectorLayers) &&
+          project.vectorLayers.length > 0
+        ) {
           vectorLayers = project.vectorLayers as VectorLayer[];
         } else {
-          vectorLayers = project.layers.map((layerMeta) => {
-            const vl = createVectorLayer(layerMeta.id, layerMeta.name);
-            vl.visible = layerMeta.visible;
-            vl.locked = layerMeta.locked;
-            vl.opacity = layerMeta.opacity;
-            return vl;
-          });
+          vectorLayers = buildEmptyVectorLayersFromMetadata(project.layers);
         }
 
         setCurrentProject(projectId, project.name);
