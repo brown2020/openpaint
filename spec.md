@@ -1,537 +1,345 @@
-# spec.md — OpenPaint Improvement Spec
+# spec.md — OpenPaint Product Specification
 
-> **Goal:** Transform OpenPaint from a raster pixel painter into a competitive web-based vector design tool.
->
-> **Positioning:** "The free, web-based vector design tool that's simple enough for everyone and powerful enough for professionals."
+Authoritative product and roadmap document. For agent implementation rules, see `AGENTS.md`.
 
----
-
-## 1. Table Stakes Gaps
-
-These are things Illustrator has that OpenPaint is missing entirely. Without them, we aren't a vector design tool at all. Must ship.
+**Last aligned with codebase:** `dev` @ vector architecture (scene graph, `documentStore`, `VectorCanvas`). Older raster-only descriptions are obsolete.
 
 ---
 
-### 1.1 Vector Object Model & Scene Graph
+## 1. Product overview
 
-**Current state:** No object model. Drawing burns pixels directly into canvas bitmaps. Once drawn, nothing can be selected, moved, or edited.
+### Product promise
 
-**Illustrator:** Every element (shape, path, text) is a persistent object with editable properties (position, size, fill, stroke, opacity). Objects live in a scene graph rendered to the canvas on every frame.
+**The free, web-based vector design tool that is simple enough for anyone to start and capable enough for everyday screen graphics** — logos, icons, diagrams, and UI assets — without a subscription or install.
 
-**Spec:**
+### Target users
 
-Build a vector document model where every element is an object stored in a scene graph (ordered tree). Each object has:
+- Hobbyists and students learning vector basics
+- Developers and PMs who need quick diagrams or icons
+- Designers who want a lightweight browser alternative for simple jobs
+- Open-source contributors extending a Firebase-backed SPA
 
-- `id` (string)
-- `type` (`"rectangle"` | `"ellipse"` | `"path"` | `"line"` | `"polygon"` | `"text"` | `"group"`)
-- `transform` — position (x, y), rotation (degrees), scale (x, y)
-- `fill` — color (hex + alpha), or gradient reference, or `null` (no fill)
-- `stroke` — color (hex + alpha), width (px), dash pattern, line cap, line join, or `null`
-- `opacity` — 0 to 1
-- `locked` — boolean
-- `visible` — boolean
-- `name` — user-editable label
+### Core workflows
 
-Type-specific properties:
-- **Rectangle:** width, height, cornerRadius (per-corner)
-- **Ellipse:** radiusX, radiusY
-- **Path:** array of path segments (MoveTo, LineTo, CubicBezierTo, QuadraticBezierTo, ClosePath), each segment has anchor points and optional control handles
-- **Line:** start point, end point
-- **Polygon:** number of sides, radius (renders as a regular polygon path)
-- **Text:** content string, fontFamily, fontSize, fontWeight, fontStyle, textAlign, lineHeight
-- **Group:** ordered children array (recursive scene graph)
+1. **Start drawing** — Open app → (optional sign-in) → new or existing project → select tool → create/edit objects on canvas.
+2. **Edit objects** — Selection tool → move, resize, nudge, adjust fill/stroke/opacity in Properties panel.
+3. **Organize** — Layers for stacking; reorder layers; lock/hide layers.
+4. **Iterate** — Undo/redo (operation-based history).
+5. **Persist** — Sign in → cloud project with auto-save intent; or local JSON / `localStorage` without auth.
+6. **Share output** — Export PNG composite.
 
-Rendering: On every frame (or when the document changes), walk the scene graph bottom-to-top and render each object to a single HTML5 Canvas using Canvas 2D API path drawing commands. This replaces the current per-layer pixel canvas stack.
+### Product goals
 
-Layers remain as an organizational concept — each layer is a top-level group in the scene graph. Objects within a layer render in order. Layers render bottom-to-top.
-
-**Data model change:** The Firestore document model changes from storing layer pixel images in Storage to storing the scene graph as JSON in Firestore. Layer images in Storage are no longer needed for vector projects. Thumbnails are still rendered and uploaded.
+- Ship a credible **vector** editor in the browser (editable objects, not burned pixels).
+- Keep **time-to-first-stroke** low (minimal friction before canvas).
+- Make **cloud save reliable** for signed-in users.
+- Close gaps vs. table-stakes vector tools (pen, SVG, text UX) in small, shippable milestones.
+- Stay maintainable: one scene graph, one active canvas path, retire dead raster code when safe.
 
 ---
 
-### 1.2 Selection Tool (V)
+## 2. Current application state
 
-**Current state:** Selection tool button exists but does nothing.
+*Inferred from repository inspection unless noted as “declared in UI only”.*
 
-**Illustrator:** Click to select objects. Drag to move. Bounding box with handles for resize/rotate. Shift+click for multi-select. Drag marquee to select multiple.
+### What the app does today
 
-**Spec:**
+OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (layers containing typed objects), renders it with Canvas 2D, and optionally syncs to Firebase. The main canvas is `VectorCanvas`; the older raster multi-canvas stack is **not wired** into `page.tsx`.
 
-- **Click** on an object to select it. Show a bounding box with 8 resize handles (corners + edge midpoints) and a rotation handle above the top edge.
-- **Drag** a selected object to move it. Show position in the status bar.
-- **Drag a resize handle** to scale. Shift constrains proportions. Alt scales from center.
-- **Drag the rotation handle** to rotate. Shift snaps to 15° increments. Show angle in status bar.
-- **Shift+click** to toggle an object in/out of the multi-selection.
-- **Drag on empty space** to draw a selection marquee. All objects intersecting the marquee are selected on mouse up.
-- **Escape** or click on empty space to deselect all.
-- **Delete/Backspace** to delete selected objects.
-- **Arrow keys** to nudge selected objects by 1px (Shift+arrow for 10px).
-- **Double-click** on a group to enter it (select children). Double-click outside to exit.
+### Current feature inventory
 
-The Properties Panel (right sidebar) shows editable fields for the selected object: position X/Y, width/height, rotation, fill color, stroke color, stroke width, opacity, corner radius (for rectangles). Changes apply immediately.
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Vector object model | **Working** | `rectangle`, `ellipse`, `line`, `polygon`, `path`, `text`, `group` in `types/vector.ts` |
+| Scene rendering | **Working** | `renderScene()` + transforms; solid + gradient fill types in renderer |
+| Selection (V) | **Working** | Hit test, marquee, move, 8-handle resize, delete, keyboard nudge |
+| Shapes R/O/L/polygon | **Working** | Create objects on drag; shift/alt modifiers in shape tool |
+| Brush | **Working** | Freehand → smoothed path objects |
+| Eraser | **Partial** | Deletes whole object under cursor, not partial erase |
+| Fill (G) | **Partial** | Sets solid fill on object under cursor (not area flood fill) |
+| Eyedropper (I) | **Working** | Samples object fill/stroke to tool defaults |
+| Text (T) | **Working** | Inline on-canvas editor; double-click to re-edit |
+| Properties panel | **Working** | Single-object: name, X/Y, W/H, rotation°, opacity, fill/stroke |
+| Color picker | **Working** | Separate fill/stroke rows, presets, swap; applies to selection |
+| Layers panel | **Working** | Vector layers + object list; select, visibility, lock, delete, drag-reorder |
+| Undo/redo | **Working** | Operation-based, max 200, on `documentStore` |
+| Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
+| PNG export | **Working** | White background composite |
+| SVG export | **Working** | Solid + gradient fills; per-corner rounded rects; groups |
+| Pen tool (P) | **Working** | Corner + smooth points; Enter/Escape; close on start |
+| Direct selection (A) | **Not implemented** | |
+| Groups UI | **Not implemented** | Model + renderer support `group` |
+| Boolean/pathfinder | **Not implemented** | |
+| Snapping / smart guides | **Not implemented** | |
+| Gradient authoring UI | **Not implemented** | Renderer can draw gradients if set on object |
+| On-canvas rotation handle | **Not implemented** | Rotation numeric in Properties only |
+| Cloud projects | **Working** | CRUD, thumbnails, `vectorLayers` in Firestore |
+| Auto-save | **Working** | Debounced save when signed in with open project |
+| Guest-first entry | **Working** | No blocking auth modal; dismissable cloud banner |
+| Local project JSON | **Working** | v2 `localStorage` / file open for `version` 2.x |
+| Legacy raster load | **Working** | Imports Storage PNGs as locked `image` objects when `vectorLayers` empty |
+| Auth modal on load | **Strict** | If Firebase configured and signed out, modal blocks UI (not closable) |
+| Tests | **None** | No automated test runner configured |
+| Dark mode | **Not implemented** | |
+| Mobile layout | **Not implemented** | Desktop-oriented sidebars |
 
-Keyboard shortcut: **V**
+### Current user flows
 
----
+```mermaid
+flowchart TD
+  A[Load /] --> B{Firebase configured?}
+  B -->|No| C[Local canvas only]
+  B -->|Yes| D{Signed in?}
+  D -->|No| E[Auth modal blocks]
+  D -->|Yes| F{Current project?}
+  F -->|No| G[Project list modal]
+  F -->|Yes| H[Editor]
+  G --> H
+  C --> H
+  H --> I[Edit vector doc]
+  I --> J{Save}
+  J -->|Signed in| K[Firestore + Storage PNGs + vectorLayers JSON]
+  J -->|Guest| L[localStorage JSON]
+  I --> M[Export PNG]
+```
 
-### 1.3 Pen Tool (P)
+### Existing integrations
 
-**Current state:** Not implemented. No path editing of any kind.
+- **Firebase Auth** — Google popup, email/password, email link
+- **Firestore** — `projects` collection per user
+- **Firebase Storage** — per-layer PNG + thumbnail (derived from vector render on save)
+- **Vercel** — typical Next.js deploy target (no `vercel.json` in repo; standard build)
 
-**Illustrator:** Click to place corner anchor points. Click-drag to create smooth anchor points with bezier control handles. The core vector drawing tool.
+### Current architecture summary
 
-**Spec:**
+- **UI:** React 19 + Tailwind v4, one page shell with toolbars and panels.
+- **State:** Zustand — `documentStore` (scene + history), `canvasStore` (tools/view + legacy raster state), `projectStore`, `authStore`.
+- **Render loop:** React effect re-renders main canvas when layers change; overlay updated imperatively during drags.
+- **Persistence:** Dual write — JSON scene in `vectorLayers` + rasterized layer PNGs for thumbnails/previews.
 
-- **Click** on the canvas to place a corner anchor point. A straight path segment connects it to the previous point.
-- **Click-drag** to place a smooth anchor point. Dragging pulls out symmetric control handles that define the curve. The further you drag, the more pronounced the curve.
-- **Click on the first anchor point** to close the path.
-- **Escape** or **Enter** to end an open path.
-- **Backspace** while drawing to delete the last placed anchor point.
-- While drawing, a **live preview line** shows where the next segment will go (from the last anchor to the cursor).
-- After placing a smooth point, **Alt+click the same point** to break the handle symmetry (convert smooth to corner for the next segment only).
+### Existing technical constraints
 
-The resulting path is a vector object in the scene graph with full fill/stroke properties.
+- Client-only Firebase; 4096×4096 canvas cap in Firestore rules.
+- Storage uploads `image/png` only (rules).
+- All `NEXT_PUBLIC_` env vars exposed to browser.
+- No service worker / offline-first.
+- Single page — no project dashboard route.
 
-Keyboard shortcut: **P**
+### Known limitations
 
----
-
-### 1.4 Direct Selection Tool (A)
-
-**Current state:** Not implemented.
-
-**Illustrator:** Select and drag individual anchor points and control handles to reshape paths.
-
-**Spec:**
-
-- **Click** on an anchor point to select it. Show control handles (if any) as lines extending from the anchor with draggable circles at the ends.
-- **Drag an anchor point** to move it (and its handles move with it).
-- **Drag a control handle** to reshape the curve. By default, handles stay symmetric (moving one moves the other). **Alt+drag** to break symmetry and move one handle independently.
-- **Shift+click** to add/remove anchor points from the multi-selection.
-- **Drag on empty space** to draw a marquee that selects all anchor points within it.
-- **Double-click** on a path segment to add a new anchor point at that position.
-- **Click an anchor point + Delete** to remove it (path reconnects through remaining points).
-
-Keyboard shortcut: **A**
-
----
-
-### 1.5 Shape Tools as Vector Objects
-
-**Current state:** Rectangle, ellipse, and line tools exist but burn pixels. The result is not an editable object.
-
-**Illustrator:** Shape tools create live objects with editable properties (corner radius, dimensions, position) that persist in the scene graph.
-
-**Spec:**
-
-Rework the existing shape tools so that instead of drawing pixels, they create vector objects in the scene graph:
-
-- **Rectangle (R):** Click-drag to create. Shift constrains to square. Alt draws from center. After creation, the object has editable width, height, and per-corner radius in the Properties Panel. Double-click to show corner radius handles on-canvas.
-- **Ellipse (O):** Click-drag to create. Shift constrains to circle. Creates an ellipse object with radiusX and radiusY.
-- **Line (L):** Click-drag to create. Shift constrains to 45° angles. Creates a line object with start/end points and stroke properties.
-- **Polygon:** New tool. Click-drag to create a regular polygon. Shift constrains rotation. Properties panel shows sides (3–12) and radius. Default: hexagon (6 sides).
-
-All shapes are created with the current fill color, stroke color, and stroke width. They appear as objects in the Layers panel and can be selected, moved, resized, and edited after creation.
-
----
-
-### 1.6 Fill & Stroke Per Object
-
-**Current state:** One global brush color. Shapes are drawn with fill OR stroke, burned into pixels.
-
-**Illustrator:** Every object has independent fill and stroke. Fill can be solid, gradient, or none. Stroke has color, width, dash, cap, and join properties. Both are editable anytime.
-
-**Spec:**
-
-Each vector object has independent:
-
-- **Fill:** solid color (hex + alpha) or `null` (no fill). Gradient support added in §1.9.
-- **Stroke:** color (hex + alpha), width (0.5–100px), line cap (`butt` | `round` | `square`), line join (`miter` | `round` | `bevel`), or `null` (no stroke).
-
-The left sidebar's color area shows **two swatches** — fill (front) and stroke (back, offset). Click a swatch to pick its color. Click the small "swap" icon to swap fill and stroke. Press **X** to swap, **/** to toggle no-fill on the active swatch.
-
-When an object is selected, changing fill/stroke updates that object. When nothing is selected, changes set defaults for the next created object.
+1. **Cloud save requires sign-in** — Guests save locally; cloud projects require authentication (by design).
+3. **Text re-edit while selected** — Properties panel edits do not open inline overlay (use double-click).
+4. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
+5. **Toolbar Clear** — Clears legacy raster canvas, not vector document.
+6. **Dead raster code** — `DrawingCanvas`, `useDrawing`, `useHistory`, `floodFill` increase confusion and bundle surface.
+7. **Save cost** — Full layer PNG re-upload every save.
+8. **Legacy projects** — Pre-vector saves without `vectorLayers` may load empty layers (metadata only).
+9. **No automated tests** — Regressions caught manually or via build only.
 
 ---
 
-### 1.7 Text Tool (T)
+## 3. Product roadmap
 
-**Current state:** Tool button exists, declared in types, but clicking does nothing.
+Ordered by **user value** and **dependency**. Each item is sized for one focused commit sequence on `dev`.
 
-**Illustrator:** Full typography engine — point type, area type, type on a path, with granular character/paragraph controls.
+### Milestone 1 — Cloud save actually auto-saves ✅
 
-**Spec:**
+**User value:** Signed-in users trust that work is saved without pressing Save.
 
-Implement basic point text:
+**Status:** Complete.
 
-- **Click** on the canvas to place a text cursor. A text input appears inline on the canvas (an editable `<div>` overlay positioned at the click point, matching the canvas zoom/pan).
-- **Type** to enter text. The text renders as a vector text object in the scene graph.
-- **Click away** or **Escape** to commit the text and deselect.
-- **Double-click** a text object with the selection tool to re-enter editing mode.
-
-Text object properties (editable in Properties Panel):
-- fontFamily — dropdown of web-safe fonts + Google Fonts (load via `@fontsource` or Google Fonts API). Start with: Arial, Helvetica, Georgia, Times New Roman, Courier New, Verdana, Inter, Roboto, Open Sans, Playfair Display.
-- fontSize — numeric input (8–200px)
-- fontWeight — normal / bold (or numeric 100–900 for variable fonts)
-- fontStyle — normal / italic
-- textAlign — left / center / right
-- fill color (text color) — uses the object's fill property
-- stroke color — optional outline on text
-
-Text renders on canvas via `ctx.fillText()` / `ctx.strokeText()` with the object's transform applied. For SVG export, text objects export as `<text>` elements.
-
-Area text (text boxes with wrapping) and text on a path are out of scope for now.
+**Implementation note:** `markDocumentDirty()` in `src/lib/sync/documentDirty.ts` is called from `documentStore` mutations, `pushHistory`, and undo/redo. `useAutoSave` debounces on `isDirty`.
 
 ---
 
-### 1.8 Boolean / Pathfinder Operations
+### Milestone 2 — Guest-first canvas (optional auth) ✅
 
-**Current state:** Not implemented.
+**User value:** New visitors can draw immediately; sign-in is for cloud features only.
 
-**Illustrator:** Unite, minus front, minus back, intersect, exclude. Combine shapes into new complex paths.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-When 2+ vector objects are selected, the toolbar (or right-click menu) shows boolean operation buttons:
+- [x] With Firebase configured, unsigned users reach a blank (or last local) canvas without a blocking modal.
+- [x] Dismissable banner with sign-in and cloud-project actions.
+- [x] Auth modal opens only when user requests cloud features (banner, toolbar Sign in, Cloud projects).
 
-- **Union:** Merge all selected shapes into one path (outer outline).
-- **Subtract:** Cut the front shape(s) out of the back shape.
-- **Intersect:** Keep only the overlapping region.
-- **Exclude:** Keep everything except the overlapping region (XOR).
-
-Implementation: Use a path boolean library (e.g., `paper.js` `PathItem.unite/subtract/intersect/exclude`, or the standalone `polygon-clipping` package). Convert our path data to the library's format, perform the operation, convert back to our path segments.
-
-The result is a single new path object that replaces the selected objects.
+**Implementation note:** `GuestSignInBanner` + on-demand `AuthModal` in `page.tsx`; local project restore from `localStorage` for guests; toolbar Sign in for guests.
 
 ---
 
-### 1.9 Gradients
+### Milestone 3 — Inline text editing ✅
 
-**Current state:** Not implemented.
+**User value:** Text is usable for real designs, not a browser prompt.
 
-**Illustrator:** Linear, radial, and freeform gradients. Gradient on stroke. Gradient mesh.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-Support two gradient types as fill options:
+- [x] Click with Text tool places an on-canvas editable field (respects zoom/pan).
+- [x] Typing updates a `text` object; Escape or click outside commits.
+- [x] Double-click existing text with Selection tool re-enters edit mode.
+- [x] Font size/family from `BrushSettings` / Properties apply to new and edited text.
 
-- **Linear gradient:** Two or more color stops along a line. User drags on-canvas handles to set direction and extent.
-- **Radial gradient:** Two or more color stops radiating from a center point. User drags handles for center, radius, and focal point.
-
-In the Properties Panel, when an object's fill is set to gradient:
-- Show a gradient bar with color stops. Click to add a stop, drag to reposition, click a stop to change its color. Double-click a stop to remove it.
-- A dropdown to switch between linear and radial.
-- On-canvas: two handles (start/end for linear; center/edge for radial) that can be dragged to reposition the gradient.
-
-Canvas rendering: Use `ctx.createLinearGradient()` / `ctx.createRadialGradient()` when filling objects.
-
-SVG export: Map to `<linearGradient>` / `<radialGradient>` in `<defs>`.
+**Implementation note:** `TextEditor` overlay inside the zoom/pan wrapper; `buildTextObject()` helper; `TextSettings` in toolbar and Properties panel; canvas text hidden during edit.
 
 ---
 
-### 1.10 SVG Export
+### Milestone 4 — Layers panel shows objects ✅
 
-**Current state:** Only PNG export exists.
+**User value:** Users can find, select, and reorder artwork without hunting on canvas.
 
-**Illustrator:** Exports to AI, SVG, EPS, PDF, PNG, JPEG, and more.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-Add an "Export as SVG" option alongside the existing PNG export:
+- [x] Active layer expands to list object names (or type + truncated name).
+- [x] Click row selects object on canvas; selection highlights row.
+- [x] Delete/visibility/lock respected from object flags.
 
-- Walk the scene graph and generate an SVG document.
-- Rectangles → `<rect>`, Ellipses → `<ellipse>`, Paths → `<path>` with d attribute, Lines → `<line>`, Text → `<text>`, Groups → `<g>`.
-- Apply transforms, fill, stroke, opacity as SVG attributes.
-- Gradients go in `<defs>` and are referenced via `url(#id)`.
-- Output a clean, minimal SVG (no unnecessary wrappers or metadata).
-- Trigger browser download of the `.svg` file.
+**Implementation note:** `LayersPanel` lists active-layer objects top-first via `formatObjectListLabel()`; row click selects; per-object visibility/lock/delete controls honor layer lock.
 
-Also add **JPEG export** — render scene graph to canvas, export as JPEG with quality slider (0.1–1.0).
+### Milestone 4 follow-up — Drag-reorder objects in layers panel ✅
 
-Export menu becomes a dropdown: PNG | SVG | JPEG.
+**User value:** Stack order can be adjusted from the panel without moving objects on canvas.
 
----
+**Status:** Complete.
 
-### 1.11 Snapping & Alignment
+**Acceptance criteria:**
 
-**Current state:** No snapping or alignment guides.
+- [x] Drag object rows within the active layer to change z-order (`reorderObject` in `documentStore`).
 
-**Illustrator:** Smart guides, snap to grid, snap to objects, align/distribute panel.
-
-**Spec:**
-
-**Smart Guides:** When dragging or resizing an object, show temporary guide lines when the object's edges or center align with other objects' edges or center. Snap to these positions with a 5px magnetic threshold. Guides appear as thin blue lines spanning the canvas.
-
-**Snap to Grid:** Toggle-able grid overlay (View menu or shortcut). When enabled, object positions snap to grid points. Grid size configurable (default 10px).
-
-**Align Panel:** When 2+ objects are selected, show alignment buttons in the Properties Panel:
-- Align left / center / right / top / middle / bottom (relative to selection bounds)
-- Distribute horizontally / vertically (even spacing)
-
-When 1 object is selected, align operations align to the canvas/artboard bounds.
+**Implementation note:** Drag handle on object rows; `computeObjectReorder()` maps top-first UI indices to `layer.objects`; disabled when layer is locked.
 
 ---
 
-### 1.12 Groups
+### Milestone 5 — SVG export ✅
 
-**Current state:** Not implemented.
+**User value:** Users can hand off vectors to other tools and the web.
 
-**Illustrator:** Group objects for collective manipulation. Groups can be nested.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-- **Ctrl+G** to group selected objects. Creates a `group` node in the scene graph with the selected objects as children.
-- **Ctrl+Shift+G** to ungroup. Moves children back to the parent layer.
-- Groups appear as collapsible items in the Layers Panel with a folder icon.
-- Selecting a group with the Selection Tool selects the whole group. Transform operations (move, scale, rotate) apply to all children.
-- **Double-click** a group to "enter" it — now clicks select individual children. Click outside or press Escape to exit the group.
-- Groups can be nested (group of groups).
+- [x] Export menu or toolbar action downloads `.svg` of visible document.
+- [x] Supports at least: rect, ellipse, line, path, text (as `<text>`), groups.
+- [x] Solid fills and strokes map correctly; transforms applied.
 
----
+**Implementation note:** `exportDocumentToSvg()` + `downloadSvgFile()` in `src/lib/vector/svgExport.ts`; toolbar SVG button and Ctrl+Shift+E; PNG export remains Ctrl+E.
 
-### 1.13 Transform with Numeric Input
+### Milestone 5 follow-up — SVG gradient fills and per-corner radii ✅
 
-**Current state:** No numeric input for transforms. Objects can't be selected at all.
+**User value:** Exported SVG matches on-canvas gradient and rounded-rectangle appearance.
 
-**Illustrator:** Precise numeric control for position, size, rotation via Properties panel and Transform dialog.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-The Properties Panel (right sidebar) shows for any selected object:
+- [x] Linear/radial gradient fills export as SVG `<defs>` gradients.
+- [x] Rectangle corner radii export per-corner (not single `rx` approximation).
 
-- **X, Y** — position (top-left corner relative to canvas). Editable number inputs.
-- **W, H** — width and height. Editable. A lock icon toggles constrained proportions.
-- **R** — rotation in degrees. Editable.
-- **Opacity** — slider 0–100%.
-
-All fields update the object in real-time as the user types. Pressing Enter commits. Tab moves to the next field.
-
-For multi-selection: fields show the bounding box dimensions. Changing values applies to the group transform.
+**Implementation note:** `SvgExportContext` dedupes gradient defs; `roundedRectPathD()` with arc segments; `gradientUnits="userSpaceOnUse"` in object local space.
 
 ---
 
-## 2. Improvement Opportunities
 
-These are things both OpenPaint and Illustrator have, but Illustrator does better. We should match or exceed them.
+### Milestone 6 — Pen tool (basic) ✅
 
----
+**User value:** Users can draw custom paths like every vector app.
 
-### 2.1 Layers Panel Upgrade
+**Status:** Complete.
 
-**Current state:** Flat list of layers. Each layer has visibility, lock, opacity, and up/down reorder buttons. Layers contain pixel data.
+**Acceptance criteria:**
 
-**Illustrator:** Hierarchical layers with sublayers. Each object visible in the layer tree. Drag-to-reorder.
+- [x] Tool P in toolbar and shortcuts.
+- [x] Click adds corner points; click-drag adds smooth points with handles; Enter/Escape finishes open path; click start closes path.
+- [x] Live preview segment to cursor.
+- [x] Result is editable `path` object in scene graph.
 
-**Spec:**
-
-Redesign the Layers Panel to show the scene graph:
-
-- Each layer is a collapsible group. Expanding it shows the objects within it.
-- Objects show their name, a visibility eye icon, and a lock icon.
-- **Drag-to-reorder** objects within and between layers (replace up/down buttons).
-- **Click** an object in the Layers Panel to select it on canvas (and vice versa — selecting on canvas highlights it in the panel).
-- Small thumbnail preview next to each object name showing its appearance.
-- Right-click context menu on objects: Rename, Duplicate, Delete, Group, Ungroup, Lock, Hide.
+**Implementation note:** `usePenTool` + `penPath.ts` segment builder; overlay preview with close-radius hint; commits `path` object and switches to selection.
 
 ---
 
-### 2.2 Color Picker Upgrade
+### Milestone 7 — Open legacy raster projects ✅
 
-**Current state:** Basic HTML color input + hex input + opacity slider. Handful of preset swatches.
+**User value:** Existing users do not lose work when opening old cloud saves.
 
-**Illustrator:** Full color picker with spectrum, sliders (HSB/RGB/Hex), swatches panel, global swatches, Pantone libraries.
+**Status:** Complete.
 
-**Spec:**
+**Acceptance criteria:**
 
-Replace the current color picker with:
+- [x] On load, if `vectorLayers` empty but Storage layer PNGs exist, import each PNG as a `rectangle` or locked `path`/image placeholder layer (documented approach: one image object per layer) **or** rasterize into a single locked background object.
+- [x] Thumbnail and save round-trip still work.
 
-- **Color spectrum area** — a square/rectangle saturation-brightness field with a hue slider bar beside it (standard HSB picker layout). Click/drag to select.
-- **Input fields** below: Hex input, R/G/B number inputs, and an opacity/alpha slider.
-- **Recent colors row** — last 12 used colors, persisted in localStorage.
-- **Saved swatches** — user can click a "+" to save the current color. Saved swatches persist per project (stored in Firestore doc).
-- **Eyedropper** button in the picker — activates eyedropper tool to sample from canvas.
-
-The two fill/stroke swatches (§1.6) are shown at the top of the color area.
+**Implementation note:** `image` object type + `fetchLegacyRasterLayers()` in `loadProject`; one locked full-canvas image per layer from Storage; save still writes `vectorLayers` + PNG composites.
 
 ---
 
-### 2.3 Zoom & Pan Improvements
+### Milestone 8 — Group / ungroup
 
-**Current state:** Zoom with scroll wheel/buttons/keyboard. Pan with middle mouse. Reset zoom button.
+**User value:** Users manage multi-shape selections as one unit.
 
-**Illustrator:** Zoom to selection, fit to canvas, fit to all objects. Smooth animated zoom. Minimap.
+**Acceptance criteria:**
 
-**Spec:**
+- Ctrl+G groups selection into `group` object; Ctrl+Shift+G ungroups.
+- Move/resize applies to group bounds.
+- Layers panel shows group expandable (depends Milestone 4).
 
-Add:
-- **Ctrl+0:** Fit canvas to viewport (zoom and center so the entire canvas is visible with padding).
-- **Ctrl+1:** Zoom to 100% (actual pixels).
-- **Ctrl+Shift+0:** Zoom to fit all objects (bounding box of all objects fills the viewport).
-- **Zoom to selection:** When objects are selected, Ctrl+Shift+1 zooms to fit the selection.
-- **Smooth animated zoom** — transitions are animated over ~150ms using `requestAnimationFrame` instead of instant jumps.
-- **Space+drag** as an alternative pan method (hold Space, then drag). This is the Illustrator/Photoshop convention and muscle memory for most designers.
+**Implementation intent:** `documentStore` group ops + history batch entries.
 
 ---
 
-### 2.4 History Improvements
+### Milestone 9 — Direct selection (anchor edit)
 
-**Current state:** Stores full canvas PNG snapshots as base64 data URLs. 50-entry limit. Very memory-heavy.
+**User value:** Users refine paths after creation.
 
-**Illustrator:** Operation-based undo. Can undo hundreds of operations with minimal memory.
+**Acceptance criteria:**
 
-**Spec:**
+- Tool A selects anchors on one `path` at a time.
+- Drag anchor moves; drag handle adjusts curve; double-click segment adds point; Delete removes anchor.
 
-Switch to **operation-based undo** that stores diffs rather than full snapshots:
-
-- Each history entry records the operation type and the minimal data needed to reverse it:
-  - Object create → store the object ID (undo = delete it)
-  - Object delete → store the full object data (undo = re-insert it)
-  - Object modify → store the object ID + the previous property values that changed (undo = restore those properties)
-  - Object reorder → store the old position (undo = move back)
-- Increase history limit to 200 entries.
-- Undo walks backward through entries, applying reverse operations.
-- Redo walks forward, re-applying operations.
-
-This eliminates the base64 PNG snapshot memory problem entirely since we're working with vector objects, not pixel data.
+**Implementation intent:** `useDirectSelectionTool` + overlay anchor rendering.
 
 ---
 
-### 2.5 Export Improvements
+### Milestone 10 — Remove raster dead path
 
-**Current state:** PNG download only. No resolution control. No background options.
+**User value:** Faster loads, fewer agent mistakes, smaller mental model.
 
-**Spec:**
+**Acceptance criteria:**
 
-Export dialog with options:
+- No imports of `DrawingCanvas` / `useDrawing` / `useHistory` from active UI.
+- Toolbar Clear clears active vector layer objects (with confirm).
+- Build and lint pass.
 
-- **Format:** PNG | SVG | JPEG (dropdown)
-- **Scale:** 1x, 2x, 3x, or custom (for PNG/JPEG — affects pixel dimensions)
-- **Background:** Transparent (PNG only) | White | Custom color
-- **Quality:** 0.1–1.0 slider (JPEG only)
-- **Selection only:** Export only the selected objects (crops to selection bounding box)
-
-Show a preview of the export dimensions and estimated file size before downloading.
+**Implementation intent:** Delete or archive unused files; trim `canvasStore` raster APIs if unreferenced.
 
 ---
 
-## 3. Differentiators
+### Later (not next queue)
 
-Things we can do that Illustrator doesn't, or where we can be meaningfully better.
+- Gradient fill UI, boolean ops, snapping, command palette, JPEG export, project dashboard route, dark mode, responsive layout, real-time collaboration.
 
----
-
-### 3.1 Zero-Install, Instant Start
-
-**Current state:** Already web-based. But requires auth to save, and presents an auth modal immediately.
-
-**Spec:**
-
-- When a non-authenticated user opens the app, skip the auth modal entirely. Drop them into a blank canvas with full tool access.
-- Show a subtle banner: "Sign in to save your work to the cloud" with a sign-in button. Dismissable.
-- All tools work without auth. Local save (download file) works without auth.
-- Auth prompt only appears when the user tries to use a cloud feature (save to cloud, open projects).
-
-This is the "instant start" experience Illustrator can never match — zero friction from URL to canvas.
+These are **not** invented new product directions; they appear in prior planning (`competitor-analysis.md` archive) and partial code (gradient types, group type).
 
 ---
 
-### 3.2 Clean, Minimal UI
+## 4. Out of scope (unchanged intent)
 
-**Current state:** Functional but crowded with all panels always visible. No way to toggle panels.
-
-**Illustrator:** Dozens of panels, deeply nested menus. Overwhelming for new users.
-
-**Spec:**
-
-- **Collapsible panels:** Left tool sidebar, left settings panel, and right layers/properties panel can each be collapsed to icons with a single click. Double-click or drag the edge to resize.
-- **Context-sensitive Properties Panel:** The right sidebar shows different content depending on what's selected:
-  - Nothing selected → canvas/document properties (size, background color, grid settings)
-  - Object selected → that object's properties (position, size, fill, stroke, opacity, type-specific)
-  - Multiple objects → shared properties + alignment buttons
-- **Minimal toolbar:** Top toolbar shows only essential actions. Advanced options live in menus or keyboard shortcuts, not visible buttons.
-- **Dark mode:** Add a dark theme (dark gray backgrounds, light text) toggled via a button in the toolbar or system preference. Use Tailwind's `dark:` variant. Persist preference in localStorage.
+| Area | Reason |
+|------|--------|
+| CMYK / print prepress | Web RGB focus |
+| AI generative features | Infra cost; not core |
+| Real-time multiplayer | Large architecture change |
+| Full Illustrator parity | 35 years of scope creep |
 
 ---
 
-### 3.3 Cloud-Native Project Management
+## 5. Related documents
 
-**Current state:** Already have cloud projects with save/load/auto-save. But project list is a basic modal with cards.
-
-**Spec:**
-
-Improve the project management experience:
-
-- **Dashboard route** (`/dashboard`): A dedicated page listing all projects as a grid of thumbnail cards. Show name, last modified date, canvas dimensions.
-- **Sorting:** By last modified (default), name (A-Z), date created.
-- **Search:** Filter projects by name.
-- **Duplicate project:** Button on each project card to create a full copy.
-- **Import SVG:** Upload an SVG file and parse it into OpenPaint's vector object model. Basic support: `<rect>`, `<ellipse>`, `<circle>`, `<line>`, `<path>`, `<text>`, `<g>`, with fill/stroke/transform.
-
----
-
-### 3.4 Keyboard-First Workflow
-
-**Current state:** Good shortcut coverage for tools and basic operations.
-
-**Spec:**
-
-Add:
-- **Command palette (Ctrl+K):** Searchable list of all actions. Type to filter, Enter to execute. Covers every action in the app — tools, file operations, view toggles, alignment, boolean ops. Shows the keyboard shortcut for each action.
-- **Quick color:** Press **1–9** (with no modifier) to select from the recent colors palette. **0** for the last-used color.
-- **Duplicate in place:** Ctrl+D duplicates the selected object(s) at a +10px,+10px offset.
-- **Copy/paste style:** Ctrl+Shift+C copies the fill/stroke/opacity of the selected object. Ctrl+Shift+V pastes those properties onto another selection.
-
----
-
-## 4. Not Doing
-
-Features Illustrator has that we're intentionally skipping, and why.
-
-| Feature | Why Not |
-|---------|---------|
-| CMYK / spot colors / prepress | Niche print-industry feature. Web app works in RGB/sRGB. |
-| Mesh gradients | Enormous engineering cost, rarely used in practice. |
-| Image trace (raster to vector) | Requires ML infrastructure. Not core to vector editing. |
-| 3D effects (revolve, extrude) | Not core to 2D vector design. Adds massive complexity. |
-| Adobe Fonts integration | Licensing impossibility. We use Google Fonts instead. |
-| Envelope distort / complex warps | Power-user features with very low usage. Low ROI. |
-| AI generative features | Requires massive infra. Not a differentiator for open source. |
-| Variable font axes | Requires complex typography engine. Use standard weight/style. |
-| Pattern fills | Complex tiling system. Can add later if demanded. |
-| Blend tool (shape morphing) | Niche illustration feature. Low priority. |
-| Symbols / instances | Useful but complex. Can add later. |
-| Artboards (multiple canvases) | Useful but adds significant UI complexity. Ship single canvas first, add later. |
-| Type on a path | Complex text layout engine. Ship basic text first, add later. |
-| Area text (text boxes) | Complex text wrapping. Ship point text first, add later. |
-| Clipping masks | Useful but can add in a future iteration. |
-| Real-time collaboration | Major architecture investment. Not needed for v1 competitive feature set. |
-| Freeform pen / pencil to vector | Converts freehand drawing to smooth vector paths. Complex smoothing algorithms. Add later. |
-
----
-
-## Summary: Priority Order
-
-| Priority | Section | Items |
-|----------|---------|-------|
-| **Must ship (Table Stakes)** | §1.1 | Vector object model & scene graph |
-| | §1.2 | Selection tool |
-| | §1.5 | Shape tools as vector objects |
-| | §1.6 | Fill & stroke per object |
-| | §1.13 | Transform with numeric input |
-| | §1.12 | Groups |
-| | §1.7 | Text tool |
-| | §1.3 | Pen tool |
-| | §1.4 | Direct selection tool |
-| | §1.8 | Boolean operations |
-| | §1.9 | Gradients |
-| | §1.10 | SVG export |
-| | §1.11 | Snapping & alignment |
-| **Improvements** | §2.1 | Layers panel upgrade |
-| | §2.2 | Color picker upgrade |
-| | §2.3 | Zoom & pan improvements |
-| | §2.4 | History improvements (operation-based undo) |
-| | §2.5 | Export improvements |
-| **Differentiators** | §3.1 | Zero-install instant start |
-| | §3.2 | Clean, minimal UI + dark mode |
-| | §3.3 | Cloud-native project management + SVG import |
-| | §3.4 | Keyboard-first workflow + command palette |
+| File | Role |
+|------|------|
+| `AGENTS.md` | Agent instructions, commands, git workflow |
+| `README.md` | Human quick start |
+| `competitor-analysis.md` | Archived market reference (pointer only) |
+| `deps-verified.md` | Archived dependency note (pointer only) |

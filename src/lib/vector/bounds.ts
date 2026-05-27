@@ -58,6 +58,9 @@ export function getLocalBounds(obj: VectorObject): BoundingBox {
       const childBounds = obj.children.map(getWorldBounds);
       return mergeBounds(childBounds);
     }
+
+    case "image":
+      return { x: 0, y: 0, width: obj.width, height: obj.height };
   }
 }
 

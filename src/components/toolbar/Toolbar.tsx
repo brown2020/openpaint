@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useAuthStore } from "@/store/authStore";
-import { useLayers } from "@/hooks/useLayers";
+import { useDocumentStore } from "@/store/documentStore";
 import { UserMenu } from "@/components/auth/UserMenu";
 
 interface ToolbarProps {
@@ -12,9 +12,12 @@ interface ToolbarProps {
   canUndo: boolean;
   canRedo: boolean;
   onSave: () => void;
-  onExport: () => void;
+  onExportPng: () => void;
+  onExportSvg: () => void;
   onNew: () => void;
   onOpen: () => void;
+  onSignIn?: () => void;
+  saveTitle?: string;
 }
 
 /**
@@ -26,25 +29,27 @@ export function Toolbar({
   canUndo,
   canRedo,
   onSave,
-  onExport,
+  onExportPng,
+  onExportSvg,
   onNew,
   onOpen,
+  onSignIn,
+  saveTitle = "Save (Ctrl+S)",
 }: ToolbarProps) {
   const { zoom, zoomIn, zoomOut, resetZoom } = useCanvasStore();
   const { user } = useAuthStore();
-  const { getActiveLayerCanvas } = useLayers();
+  const clearActiveLayer = useDocumentStore((s) => s.clearActiveLayer);
+  const activeLayer = useDocumentStore((s) =>
+    s.layers.find((l) => l.id === s.activeLayerId),
+  );
 
   const handleClear = useCallback(() => {
-    const canvas = getActiveLayerCanvas();
-    if (!canvas) return;
+    if (!activeLayer || activeLayer.objects.length === 0) return;
 
     if (confirm("Are you sure you want to clear the current layer?")) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
+      clearActiveLayer();
     }
-  }, [getActiveLayerCanvas]);
+  }, [activeLayer, clearActiveLayer]);
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white">
@@ -63,14 +68,19 @@ export function Toolbar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
           </svg>
         </ToolbarButton>
-        <ToolbarButton onClick={onSave} title="Save (Ctrl+S)">
+        <ToolbarButton onClick={onSave} title={saveTitle}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
         </ToolbarButton>
-        <ToolbarButton onClick={onExport} title="Export (Ctrl+E)">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <ToolbarButton onClick={onExportPng} title="Export PNG (Ctrl+E)" aria-label="Export PNG">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        </ToolbarButton>
+        <ToolbarButton onClick={onExportSvg} title="Export SVG (Ctrl+Shift+E)" aria-label="Export SVG">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
           </svg>
         </ToolbarButton>
       </div>
@@ -124,8 +134,18 @@ export function Toolbar({
         Press B for Brush, E for Eraser, [ ] for size
       </div>
 
-      {/* User Menu */}
-      {user && <UserMenu />}
+      {/* Auth */}
+      {user ? (
+        <UserMenu />
+      ) : onSignIn ? (
+        <button
+          type="button"
+          onClick={onSignIn}
+          className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        >
+          Sign in
+        </button>
+      ) : null}
     </div>
   );
 }
