@@ -80,13 +80,14 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Layers panel | Working — vector layers + active-layer object list (select, visibility, lock, delete) |
 | Undo/redo | Working — operation-based on `documentStore` |
 | Zoom/pan | Working — wheel (ctrl/meta), middle-mouse pan |
-| PNG export | Working — composites via `renderScene` |
+| PNG export | Working — composites via `renderScene` (Ctrl+E) |
+| SVG export | Working — `exportDocumentToSvg` (toolbar + Ctrl+Shift+E) |
 | Firebase auth | Google, email/password, email link |
 | Cloud projects | Create, list, open, save, delete, rename, thumbnails |
 | Auto-save hook | Present — **debounced save likely broken** (`markDirty` never called; see cautions) |
 | Pen tool | **Not implemented** |
 | Direct selection (anchor edit) | **Not implemented** |
-| SVG export | **Not implemented** |
+| SVG export | Working — scene graph to `.svg` (solid fill/stroke) |
 | Groups (Ctrl+G UI) | **Not implemented** (renderer supports `group`) |
 | Gradient fills (UI) | **Not implemented** (types + renderer support gradients) |
 | On-canvas rotation handle | **Not implemented** (rotation via Properties panel only) |
