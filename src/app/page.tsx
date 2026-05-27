@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
@@ -17,10 +17,17 @@ import { BrushSettings } from "@/components/toolbar/BrushSettings";
 import { PropertiesPanel } from "@/components/panels/PropertiesPanel";
 import { LayersPanel } from "@/components/panels/LayersPanel";
 import { StatusBar } from "@/components/panels/StatusBar";
-import { AuthModal } from "@/components/auth/AuthModal";
+import {
+  AuthModal,
+  GuestSignInBanner,
+  getGuestBannerDismissed,
+  setGuestBannerDismissed,
+} from "@/components/auth";
 import { ProjectListModal, NewProjectDialog } from "@/components/projects";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { isFirebaseConfigured } from "@/lib/firebase/auth";
+
+type AuthIntent = "none" | "openProjects";
 
 export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +40,7 @@ export default function Home() {
     canUndo: docCanUndo,
     canRedo: docCanRedo,
     newDocument,
+    loadDocument,
     addLayer: addVectorLayer,
   } = useDocumentStore();
   const { saveProject, createNewProject } = useProjects();
@@ -40,11 +48,60 @@ export default function Home() {
   // Initialize auto-save
   useAutoSave({ enabled: !!user && !!currentProjectId });
 
-  // Modal states — derived from auth/project state to avoid setState-in-effect
-  const showAuthModal = authInitialized && !user && isFirebaseConfigured;
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authIntent, setAuthIntent] = useState<AuthIntent>("none");
+  const [bannerDismissed, setBannerDismissed] = useState(
+    () => typeof window !== "undefined" && getGuestBannerDismissed(),
+  );
   const [projectListOpen, setProjectListOpen] = useState(false);
   const showProjectList = !!user && (projectListOpen || (authInitialized && !currentProjectId));
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+
+  const showGuestBanner =
+    authInitialized && !user && isFirebaseConfigured && !bannerDismissed;
+
+  // Restore last local project for guests (optional instant resume)
+  useEffect(() => {
+    if (!authInitialized || user) return;
+
+    try {
+      const raw = localStorage.getItem("openpaint-project");
+      if (!raw) return;
+      const data = JSON.parse(raw) as {
+        version?: string;
+        canvasSize?: { width: number; height: number };
+        layers?: Parameters<typeof loadDocument>[0];
+      };
+      if (data.version?.startsWith("2") && data.layers?.length) {
+        newProject(data.canvasSize ?? { width: 800, height: 600 });
+        loadDocument(data.layers, data.layers[0].id);
+      }
+    } catch {
+      // Ignore corrupt local saves
+    }
+  }, [authInitialized, user, newProject, loadDocument]);
+
+  const openAuthModal = useCallback((intent: AuthIntent = "none") => {
+    setAuthIntent(intent);
+    setAuthModalOpen(true);
+  }, []);
+
+  const handleAuthSuccess = useCallback(() => {
+    const intent = authIntent;
+    setAuthModalOpen(false);
+    setAuthIntent("none");
+    // Defer until Firebase auth state has propagated
+    queueMicrotask(() => {
+      if (useAuthStore.getState().user && intent === "openProjects") {
+        setProjectListOpen(true);
+      }
+    });
+  }, [authIntent]);
+
+  const handleDismissBanner = useCallback(() => {
+    setGuestBannerDismissed();
+    setBannerDismissed(true);
+  }, []);
 
   // Handle undo/redo — uses the vector document store
   const handleUndo = useCallback(() => {
@@ -113,11 +170,9 @@ export default function Home() {
   const handleNew = useCallback(() => {
     if (user) {
       setShowNewProjectDialog(true);
-    } else {
-      if (confirm("Create a new project? Unsaved changes will be lost.")) {
-        newProject();
-        newDocument();
-      }
+    } else if (confirm("Create a new project? Unsaved changes will be lost.")) {
+      newProject();
+      newDocument();
     }
   }, [user, newProject, newDocument]);
 
@@ -129,6 +184,14 @@ export default function Home() {
       fileInputRef.current?.click();
     }
   }, [user]);
+
+  const handleOpenCloudProjects = useCallback(() => {
+    if (user) {
+      setProjectListOpen(true);
+    } else if (isFirebaseConfigured) {
+      openAuthModal("openProjects");
+    }
+  }, [user, openAuthModal]);
 
   // Handle file selection (for local project files)
   const handleFileChange = useCallback(
@@ -198,6 +261,15 @@ export default function Home() {
         className="hidden"
       />
 
+      {showGuestBanner && (
+        <GuestSignInBanner
+          onSignIn={() => openAuthModal()}
+          onOpenCloudProjects={handleOpenCloudProjects}
+          dismissed={false}
+          onDismiss={handleDismissBanner}
+        />
+      )}
+
       {/* Top Toolbar */}
       <Toolbar
         onUndo={handleUndo}
@@ -208,6 +280,14 @@ export default function Home() {
         onExport={handleExport}
         onNew={handleNew}
         onOpen={handleOpen}
+        onSignIn={!user && isFirebaseConfigured ? () => openAuthModal() : undefined}
+        saveTitle={
+          user
+            ? "Save to cloud (Ctrl+S)"
+            : isFirebaseConfigured
+              ? "Save locally (Ctrl+S)"
+              : "Save (Ctrl+S)"
+        }
       />
 
       {/* Main content area */}
@@ -240,10 +320,15 @@ export default function Home() {
       {/* Status bar */}
       <StatusBar />
 
-      {/* Auth Modal */}
+      {/* Auth Modal — only when user requests cloud features */}
       <AuthModal
-        isOpen={showAuthModal}
-        closable={false}
+        isOpen={authModalOpen}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setAuthIntent("none");
+        }}
+        onSuccess={handleAuthSuccess}
+        closable
       />
 
       {/* Project List Modal */}
