@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { computeObjectReorder } from "@/lib/vector/layerObjectReorder";
 import { formatObjectListLabel } from "@/lib/vector/objectLabel";
 import { useDocumentStore } from "@/store/documentStore";
 import type { VectorLayer, VectorObject } from "@/types/vector";
@@ -20,6 +21,7 @@ export function LayersPanel() {
   const selectObject = useDocumentStore((s) => s.selectObject);
   const updateObject = useDocumentStore((s) => s.updateObject);
   const removeObject = useDocumentStore((s) => s.removeObject);
+  const reorderObject = useDocumentStore((s) => s.reorderObject);
 
   const canDeleteLayer = layers.length > 1;
   const selectedSet = new Set(selectedObjectIds);
@@ -188,6 +190,7 @@ export function LayersPanel() {
                     updateObject(objectId, { locked })
                   }
                   onDeleteObject={removeObject}
+                  onReorderObject={reorderObject}
                 />
               )}
             </div>
@@ -237,6 +240,7 @@ function ObjectList({
   onToggleVisible,
   onToggleLocked,
   onDeleteObject,
+  onReorderObject,
 }: {
   layer: VectorLayer;
   layerLocked: boolean;
@@ -245,7 +249,48 @@ function ObjectList({
   onToggleVisible: (objectId: string, visible: boolean) => void;
   onToggleLocked: (objectId: string, locked: boolean) => void;
   onDeleteObject: (objectId: string) => void;
+  onReorderObject: (
+    layerId: string,
+    fromIndex: number,
+    toIndex: number,
+  ) => void;
 }) {
+  const [dragObjectId, setDragObjectId] = useState<string | null>(null);
+  const [dropUiIndex, setDropUiIndex] = useState<number | null>(null);
+
+  const finishDrag = useCallback(() => {
+    setDragObjectId(null);
+    setDropUiIndex(null);
+  }, []);
+
+  const handleDropOnRow = useCallback(
+    (targetUiIndex: number) => {
+      if (layerLocked || !dragObjectId) {
+        finishDrag();
+        return;
+      }
+
+      const fromArrayIndex = layer.objects.findIndex((o) => o.id === dragObjectId);
+      const indices = computeObjectReorder(
+        layer.objects.length,
+        fromArrayIndex,
+        targetUiIndex,
+      );
+      if (indices) {
+        onReorderObject(layer.id, indices.fromIndex, indices.toIndex);
+      }
+      finishDrag();
+    },
+    [
+      dragObjectId,
+      finishDrag,
+      layer.id,
+      layer.objects,
+      layerLocked,
+      onReorderObject,
+    ],
+  );
+
   if (layer.objects.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-t border-gray-100">
@@ -261,17 +306,27 @@ function ObjectList({
       className="bg-gray-50 border-t border-gray-100"
       aria-label={`Objects on ${layer.name}`}
     >
-      {objectsTopFirst.map((obj) => (
+      {objectsTopFirst.map((obj, uiIndex) => (
         <ObjectRow
           key={obj.id}
           layerId={layer.id}
           obj={obj}
           layerLocked={layerLocked}
           isSelected={selectedSet.has(obj.id)}
+          isDragSource={dragObjectId === obj.id}
+          isDropTarget={dropUiIndex === uiIndex && dragObjectId !== obj.id}
           onSelectObject={onSelectObject}
           onToggleVisible={onToggleVisible}
           onToggleLocked={onToggleLocked}
           onDeleteObject={onDeleteObject}
+          onDragStart={() => setDragObjectId(obj.id)}
+          onDragEnter={() => setDropUiIndex(uiIndex)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+          }}
+          onDrop={() => handleDropOnRow(uiIndex)}
+          onDragEnd={finishDrag}
         />
       ))}
     </ul>
@@ -283,25 +338,52 @@ function ObjectRow({
   obj,
   layerLocked,
   isSelected,
+  isDragSource,
+  isDropTarget,
   onSelectObject,
   onToggleVisible,
   onToggleLocked,
   onDeleteObject,
+  onDragStart,
+  onDragEnter,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: {
   layerId: string;
   obj: VectorObject;
   layerLocked: boolean;
   isSelected: boolean;
+  isDragSource: boolean;
+  isDropTarget: boolean;
   onSelectObject: (layerId: string, objectId: string) => void;
   onToggleVisible: (objectId: string, visible: boolean) => void;
   onToggleLocked: (objectId: string, locked: boolean) => void;
   onDeleteObject: (objectId: string) => void;
+  onDragStart: () => void;
+  onDragEnter: () => void;
+  onDragOver: (e: React.DragEvent<HTMLLIElement>) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }) {
   const label = formatObjectListLabel(obj);
   const controlsDisabled = layerLocked;
+  const dragEnabled = !layerLocked;
 
   return (
-    <li>
+    <li
+      onDragEnter={dragEnabled ? onDragEnter : undefined}
+      onDragOver={dragEnabled ? onDragOver : undefined}
+      onDrop={
+        dragEnabled
+          ? (e) => {
+              e.preventDefault();
+              onDrop();
+            }
+          : undefined
+      }
+      className={isDropTarget ? "border-t-2 border-blue-400" : undefined}
+    >
       <div
         role="button"
         tabIndex={0}
@@ -313,10 +395,32 @@ function ObjectRow({
           }
         }}
         aria-current={isSelected ? "true" : undefined}
-        className={`flex items-center gap-1.5 pl-6 pr-2 py-1.5 cursor-pointer border-b border-gray-100 last:border-b-0 ${
+        className={`flex items-center gap-1.5 pl-2 pr-2 py-1.5 cursor-pointer border-b border-gray-100 last:border-b-0 ${
           isSelected ? "bg-blue-50 ring-1 ring-inset ring-blue-300" : "hover:bg-gray-100"
-        } ${!obj.visible ? "opacity-60" : ""}`}
+        } ${isDragSource ? "opacity-50" : ""} ${!obj.visible ? "opacity-60" : ""}`}
       >
+        <span
+          draggable={dragEnabled}
+          onDragStart={
+            dragEnabled
+              ? (e) => {
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", obj.id);
+                  onDragStart();
+                }
+              : undefined
+          }
+          onDragEnd={dragEnabled ? onDragEnd : undefined}
+          onClick={(e) => e.stopPropagation()}
+          className={`shrink-0 p-0.5 rounded text-gray-400 ${
+            dragEnabled ? "cursor-grab active:cursor-grabbing hover:text-gray-600" : "cursor-not-allowed"
+          }`}
+          title={dragEnabled ? "Drag to reorder" : "Layer is locked"}
+          aria-label={dragEnabled ? "Drag to reorder" : "Reorder disabled — layer locked"}
+        >
+          <DragHandleIcon />
+        </span>
+
         <button
           type="button"
           disabled={controlsDisabled}
@@ -382,6 +486,19 @@ function ObjectRow({
         </button>
       </div>
     </li>
+  );
+}
+
+function DragHandleIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <circle cx="9" cy="6" r="1.5" />
+      <circle cx="15" cy="6" r="1.5" />
+      <circle cx="9" cy="12" r="1.5" />
+      <circle cx="15" cy="12" r="1.5" />
+      <circle cx="9" cy="18" r="1.5" />
+      <circle cx="15" cy="18" r="1.5" />
+    </svg>
   );
 }
 
