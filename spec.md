@@ -61,7 +61,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Text (T) | **Working** | Inline on-canvas editor; double-click to re-edit |
 | Properties panel | **Working** | Single-object: name, X/Y, W/H, rotation°, opacity, fill/stroke |
 | Color picker | **Working** | Separate fill/stroke rows, presets, swap; applies to selection |
-| Layers panel | **Working** | Vector layers only; up/down reorder; no object list |
+| Layers panel | **Working** | Vector layers + active-layer object list; select, visibility, lock, delete |
 | Undo/redo | **Working** | Operation-based, max 200, on `documentStore` |
 | Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
 | PNG export | **Working** | White background composite |
@@ -185,17 +185,27 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 ---
 
-### Milestone 4 — Layers panel shows objects
+### Milestone 4 — Layers panel shows objects ✅
 
 **User value:** Users can find, select, and reorder artwork without hunting on canvas.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Active layer expands to list object names (or type + truncated name).
-- Click row selects object on canvas; selection highlights row.
-- Delete/visibility/lock respected from object flags.
+- [x] Active layer expands to list object names (or type + truncated name).
+- [x] Click row selects object on canvas; selection highlights row.
+- [x] Delete/visibility/lock respected from object flags.
 
-**Implementation intent:** Extend `LayersPanel` from `documentStore`; optional drag-reorder objects within layer.
+**Implementation note:** `LayersPanel` lists active-layer objects top-first via `formatObjectListLabel()`; row click selects; per-object visibility/lock/delete controls honor layer lock.
+
+### Milestone 4 follow-up — Drag-reorder objects in layers panel
+
+**User value:** Stack order can be adjusted from the panel without moving objects on canvas.
+
+**Acceptance criteria:**
+
+- Drag object rows within the active layer to change z-order (`reorderObject` in `documentStore`).
 
 ---
 
