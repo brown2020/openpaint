@@ -61,7 +61,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Text (T) | **Working** | Inline on-canvas editor; double-click to re-edit |
 | Properties panel | **Working** | Single-object: name, X/Y, W/H, rotation°, opacity, fill/stroke |
 | Color picker | **Working** | Separate fill/stroke rows, presets, swap; applies to selection |
-| Layers panel | **Working** | Vector layers + active-layer object list; select, visibility, lock, delete |
+| Layers panel | **Working** | Vector layers + object list; select, visibility, lock, delete, drag-reorder |
 | Undo/redo | **Working** | Operation-based, max 200, on `documentStore` |
 | Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
 | PNG export | **Working** | White background composite |
@@ -199,13 +199,17 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 **Implementation note:** `LayersPanel` lists active-layer objects top-first via `formatObjectListLabel()`; row click selects; per-object visibility/lock/delete controls honor layer lock.
 
-### Milestone 4 follow-up — Drag-reorder objects in layers panel
+### Milestone 4 follow-up — Drag-reorder objects in layers panel ✅
 
 **User value:** Stack order can be adjusted from the panel without moving objects on canvas.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Drag object rows within the active layer to change z-order (`reorderObject` in `documentStore`).
+- [x] Drag object rows within the active layer to change z-order (`reorderObject` in `documentStore`).
+
+**Implementation note:** Drag handle on object rows; `computeObjectReorder()` maps top-first UI indices to `layer.objects`; disabled when layer is locked.
 
 ---
 

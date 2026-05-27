@@ -77,7 +77,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Eyedropper | Working — samples object fill/stroke swatches |
 | Text tool | Working — inline on-canvas editor; double-click to re-edit |
 | Properties panel | Working for single selection — position, size, rotation, opacity, fill/stroke |
-| Layers panel | Working — vector layers + active-layer object list (select, visibility, lock, delete) |
+| Layers panel | Working — vector layers + object list (select, visibility, lock, delete, drag-reorder) |
 | Undo/redo | Working — operation-based on `documentStore` |
 | Zoom/pan | Working — wheel (ctrl/meta), middle-mouse pan |
 | PNG export | Working — composites via `renderScene` (Ctrl+E) |
