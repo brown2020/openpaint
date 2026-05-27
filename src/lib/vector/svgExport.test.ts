@@ -5,11 +5,12 @@ import {
   createStroke,
   createTransform,
 } from "@/types/vector";
-import type { RectangleObject, TextObject } from "@/types/vector";
+import type { LinearGradientFill, RectangleObject, TextObject } from "@/types/vector";
 import {
   escapeXml,
   exportDocumentToSvg,
   pathSegmentsToD,
+  roundedRectPathD,
 } from "./svgExport";
 
 describe("svgExport", () => {
@@ -71,6 +72,53 @@ describe("svgExport", () => {
     expect(svg).toContain('fill="#ff0000"');
     expect(svg).toContain("<text");
     expect(svg).toContain("Hi</text>");
+  });
+
+  it("exports per-corner rounded rectangle as path", () => {
+    const d = roundedRectPathD(100, 50, [10, 5, 0, 15]);
+    expect(d).toContain("A 10 10");
+    expect(d).toContain("A 5 5");
+    expect(d).toContain("A 15 15");
+    expect(d.endsWith("Z")).toBe(true);
+  });
+
+  it("exports linear gradient fills in defs", () => {
+    const gradient: LinearGradientFill = {
+      type: "linear-gradient",
+      stops: [
+        { offset: 0, color: "#ff0000", opacity: 1 },
+        { offset: 1, color: "#0000ff", opacity: 0.5 },
+      ],
+      startX: 0,
+      startY: 0,
+      endX: 100,
+      endY: 0,
+    };
+
+    const rect: RectangleObject = {
+      id: "r1",
+      type: "rectangle",
+      name: "Grad",
+      transform: createTransform(0, 0),
+      fill: gradient,
+      stroke: null,
+      opacity: 1,
+      visible: true,
+      locked: false,
+      width: 80,
+      height: 40,
+      cornerRadius: [0, 0, 0, 0],
+    };
+
+    const layer = createLayer("layer-1", "Layer 1");
+    layer.objects = [rect];
+
+    const svg = exportDocumentToSvg([layer], { width: 200, height: 100 });
+
+    expect(svg).toContain("<defs>");
+    expect(svg).toContain("<linearGradient");
+    expect(svg).toContain('fill="url(#op-gradient-1)"');
+    expect(svg).toContain('stop-color="#ff0000"');
   });
 
   it("skips hidden layers and objects", () => {
