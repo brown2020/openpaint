@@ -58,7 +58,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Eraser | **Partial** | Deletes whole object under cursor, not partial erase |
 | Fill (G) | **Partial** | Sets solid fill on object under cursor (not area flood fill) |
 | Eyedropper (I) | **Working** | Samples object fill/stroke to tool defaults |
-| Text (T) | **Minimal** | Browser `prompt()`; static font defaults |
+| Text (T) | **Working** | Inline on-canvas editor; double-click to re-edit |
 | Properties panel | **Working** | Single-object: name, X/Y, W/H, rotation°, opacity, fill/stroke |
 | Color picker | **Working** | Separate fill/stroke rows, presets, swap; applies to selection |
 | Layers panel | **Working** | Vector layers only; up/down reorder; no object list |
@@ -128,7 +128,7 @@ flowchart TD
 ### Known limitations
 
 1. **Cloud save requires sign-in** — Guests save locally; cloud projects require authentication (by design).
-3. **Text UX** — `prompt()` only; no re-edit on canvas.
+3. **Text re-edit while selected** — Properties panel edits do not open inline overlay (use double-click).
 4. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
 5. **Toolbar Clear** — Clears legacy raster canvas, not vector document.
 6. **Dead raster code** — `DrawingCanvas`, `useDrawing`, `useHistory`, `floodFill` increase confusion and bundle surface.
@@ -168,18 +168,20 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 ---
 
-### Milestone 3 — Inline text editing
+### Milestone 3 — Inline text editing ✅
 
 **User value:** Text is usable for real designs, not a browser prompt.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Click with Text tool places an on-canvas editable field (respects zoom/pan).
-- Typing updates a `text` object; Escape or click outside commits.
-- Double-click existing text with Selection tool re-enters edit mode.
-- Font size/family from `BrushSettings` / Properties apply to new and edited text.
+- [x] Click with Text tool places an on-canvas editable field (respects zoom/pan).
+- [x] Typing updates a `text` object; Escape or click outside commits.
+- [x] Double-click existing text with Selection tool re-enters edit mode.
+- [x] Font size/family from `BrushSettings` / Properties apply to new and edited text.
 
-**Implementation intent:** DOM overlay or contenteditable positioned in `VectorCanvas`; remove `prompt()`.
+**Implementation note:** `TextEditor` overlay inside the zoom/pan wrapper; `buildTextObject()` helper; `TextSettings` in toolbar and Properties panel; canvas text hidden during edit.
 
 ---
 

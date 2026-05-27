@@ -21,6 +21,8 @@ export interface RenderOptions {
   selectedIds?: string[];
   /** Object currently being hovered */
   hoveredId?: string | null;
+  /** Skip rendering these object IDs (e.g. while inline text editing) */
+  hiddenObjectIds?: ReadonlySet<string>;
   /** Whether to show the grid */
   showGrid?: boolean;
   /** Grid spacing in pixels */
@@ -53,6 +55,7 @@ export function renderScene(
     ctx.globalAlpha = layer.opacity;
 
     for (const obj of layer.objects) {
+      if (options.hiddenObjectIds?.has(obj.id)) continue;
       renderObject(ctx, obj);
     }
 

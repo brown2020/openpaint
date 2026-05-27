@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { normalizeTextAlign, textStyleFromOptions } from "@/lib/vector/textObject";
 import { useDocumentStore } from "@/store/documentStore";
 import { useCanvasStore } from "@/store/canvasStore";
 import { getWorldBounds } from "@/lib/vector/bounds";
-import type { VectorObject } from "@/types/vector";
+import type { TextObject, VectorObject } from "@/types/vector";
+import { TextSettings } from "@/components/toolbar/TextSettings";
 
 /**
  * Properties panel — shows editable properties for the selected object(s).
@@ -325,6 +327,79 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
           max={12}
         />
       )}
+
+      {obj.type === "text" && (
+        <TextObjectProps obj={obj} updateObject={updateObject} commitChange={commitChange} />
+      )}
+    </div>
+  );
+}
+
+function TextObjectProps({
+  obj,
+  updateObject,
+  commitChange,
+}: {
+  obj: TextObject;
+  updateObject: ReturnType<typeof useDocumentStore.getState>["updateObject"];
+  commitChange: (field: string, before: unknown, after: unknown) => void;
+}) {
+  const textOptions = useCanvasStore((s) => s.textOptions);
+  const setTextOptions = useCanvasStore((s) => s.setTextOptions);
+  const skipFontSyncRef = useRef(true);
+
+  useEffect(() => {
+    if (skipFontSyncRef.current) {
+      skipFontSyncRef.current = false;
+      setTextOptions({
+        fontFamily: obj.fontFamily,
+        fontSize: obj.fontSize,
+        fontWeight: obj.fontWeight,
+        fontStyle: obj.fontStyle,
+        textAlign: normalizeTextAlign(obj.textAlign),
+      });
+      return;
+    }
+
+    const style = textStyleFromOptions(textOptions);
+    const changed =
+      obj.fontFamily !== style.fontFamily ||
+      obj.fontSize !== style.fontSize ||
+      obj.fontWeight !== style.fontWeight ||
+      obj.fontStyle !== style.fontStyle ||
+      obj.textAlign !== style.textAlign;
+
+    if (!changed) return;
+
+    const before = {
+      fontFamily: obj.fontFamily,
+      fontSize: obj.fontSize,
+      fontWeight: obj.fontWeight,
+      fontStyle: obj.fontStyle,
+      textAlign: obj.textAlign,
+    };
+    updateObject(obj.id, style);
+    commitChange("textStyle", before, style);
+  }, [textOptions, obj, setTextOptions, updateObject, commitChange]);
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-gray-200 pt-2">
+      <span className="text-gray-600 font-medium">Text</span>
+      <label className="text-gray-600">
+        Content
+        <textarea
+          value={obj.content}
+          onChange={(e) => {
+            const before = obj.content;
+            const after = e.target.value;
+            updateObject(obj.id, { content: after });
+            commitChange("content", before, after);
+          }}
+          rows={2}
+          className="mt-0.5 w-full px-1.5 py-1 text-xs border border-gray-300 rounded bg-white resize-y"
+        />
+      </label>
+      <TextSettings />
     </div>
   );
 }

@@ -75,7 +75,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Eraser | Partial — deletes object under click (not stroke erasing) |
 | Fill tool | Partial — sets solid fill on hit object (not pixel flood fill) |
 | Eyedropper | Working — samples object fill/stroke swatches |
-| Text tool | Minimal — `prompt()` dialog, no inline editing |
+| Text tool | Working — inline on-canvas editor; double-click to re-edit |
 | Properties panel | Working for single selection — position, size, rotation, opacity, fill/stroke |
 | Layers panel | Working — vector layers (visibility, lock, opacity, reorder); **no per-object tree** |
 | Undo/redo | Working — operation-based on `documentStore` |

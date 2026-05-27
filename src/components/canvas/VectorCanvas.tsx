@@ -1,7 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useDocumentStore } from "@/store/documentStore";
 import { useSelectionTool } from "@/hooks/useSelectionTool";
@@ -9,18 +8,22 @@ import { useShapeTool } from "@/hooks/useShapeTool";
 import { useFreehandTool } from "@/hooks/useFreehandTool";
 import { hitTestLayers } from "@/lib/vector/hitTest";
 import { renderScene, renderSelectionOverlay } from "@/lib/vector/renderer";
-import { createTransform, createSolidFill } from "@/types/vector";
+import {
+  buildTextObject,
+  normalizeTextAlign,
+  textStyleFromOptions,
+} from "@/lib/vector/textObject";
 import type { Point2D, TextObject } from "@/types/vector";
+import { TextEditor } from "./TextEditor";
 
 const SHAPE_TOOLS = new Set(["rectangle", "ellipse", "line", "polygon"]);
 
+type TextEditSession =
+  | { mode: "new"; point: Point2D }
+  | { mode: "edit"; objectId: string; point: Point2D };
+
 /**
  * Vector canvas — renders scene graph and handles tool interactions.
- *
- * Three stacked canvases:
- *  1. Main: renders vector objects
- *  2. Overlay: selection handles, tool previews, guides
- *  3. Event: invisible, captures all pointer events
  */
 export function VectorCanvas() {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -28,8 +31,21 @@ export function VectorCanvas() {
   const eventCanvasRef = useRef<HTMLCanvasElement>(null);
   const currentPointRef = useRef<Point2D>({ x: 0, y: 0 });
   const pointerDownRef = useRef(false);
+  const committingTextRef = useRef(false);
+  const editSnapshotRef = useRef<TextObject | null>(null);
 
-  const { canvasSize, zoom, pan, activeTool, setCursorPosition } = useCanvasStore();
+  const [textSession, setTextSession] = useState<TextEditSession | null>(null);
+  const [textDraft, setTextDraft] = useState("");
+
+  const {
+    canvasSize,
+    zoom,
+    pan,
+    activeTool,
+    setCursorPosition,
+    textOptions,
+    fillColor,
+  } = useCanvasStore();
   const layers = useDocumentStore((s) => s.layers);
   const selectedObjectIds = useDocumentStore((s) => s.selectedObjectIds);
 
@@ -37,10 +53,17 @@ export function VectorCanvas() {
   const shapeTool = useShapeTool();
   const freehandTool = useFreehandTool();
 
-  // ---- Coordinate conversion ----
+  const hiddenObjectIds = useMemo(() => {
+    if (textSession?.mode === "edit") {
+      return new Set([textSession.objectId]);
+    }
+    return undefined;
+  }, [textSession]);
 
   const getCanvasPoint = useCallback(
-    (e: React.PointerEvent | PointerEvent): Point2D | null => {
+    (
+      e: React.PointerEvent | React.MouseEvent | PointerEvent | MouseEvent,
+    ): Point2D | null => {
       const canvas = eventCanvasRef.current;
       if (!canvas) return null;
       const rect = canvas.getBoundingClientRect();
@@ -52,21 +75,19 @@ export function VectorCanvas() {
     [],
   );
 
-  // ---- Render main scene ----
-
   const renderMain = useCallback(() => {
     const canvas = mainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    renderScene(ctx, layers, canvasSize.width, canvasSize.height);
-  }, [layers, canvasSize]);
+    renderScene(ctx, layers, canvasSize.width, canvasSize.height, {
+      hiddenObjectIds,
+    });
+  }, [layers, canvasSize, hiddenObjectIds]);
 
   useEffect(() => {
     renderMain();
   }, [renderMain]);
-
-  // ---- Render overlay (called imperatively for performance) ----
 
   const renderOverlay = useCallback(() => {
     const canvas = overlayCanvasRef.current;
@@ -76,7 +97,6 @@ export function VectorCanvas() {
 
     ctx.clearRect(0, 0, canvasSize.width, canvasSize.height);
 
-    // Selection outlines + handles
     renderSelectionOverlay(
       ctx,
       layers,
@@ -85,11 +105,9 @@ export function VectorCanvas() {
       canvasSize.height,
     );
 
-    // Tool-specific previews
     shapeTool.renderPreview(ctx);
     freehandTool.renderPreview(ctx);
 
-    // Marquee preview
     const marquee = selectionTool.getMarqueeRect(currentPointRef.current);
     if (marquee) {
       ctx.save();
@@ -103,12 +121,144 @@ export function VectorCanvas() {
     }
   }, [layers, selectedObjectIds, canvasSize, shapeTool, freehandTool, selectionTool]);
 
-  // Re-render overlay when selection changes
   useEffect(() => {
     renderOverlay();
   }, [renderOverlay]);
 
-  // ---- Utility tool handlers (eraser, fill bucket, eyedropper) ----
+  const cancelTextEdit = useCallback(() => {
+    if (textSession?.mode === "edit" && editSnapshotRef.current) {
+      const snap = editSnapshotRef.current;
+      useDocumentStore.getState().updateObject(snap.id, {
+        content: snap.content,
+        fontFamily: snap.fontFamily,
+        fontSize: snap.fontSize,
+        fontWeight: snap.fontWeight,
+        fontStyle: snap.fontStyle,
+        textAlign: snap.textAlign,
+        fill: snap.fill,
+      });
+    }
+    editSnapshotRef.current = null;
+    setTextSession(null);
+    setTextDraft("");
+  }, [textSession]);
+
+  const commitTextEdit = useCallback(() => {
+    if (committingTextRef.current || !textSession) return;
+    committingTextRef.current = true;
+
+    try {
+      const trimmed = textDraft.trim();
+      const store = useDocumentStore.getState();
+      const canvasState = useCanvasStore.getState();
+
+      if (textSession.mode === "new") {
+        if (!trimmed) {
+          cancelTextEdit();
+          return;
+        }
+
+        const textObj = buildTextObject({
+          point: textSession.point,
+          content: trimmed,
+          textOptions: canvasState.textOptions,
+          fillColor: canvasState.fillColor,
+          fillEnabled: canvasState.fillEnabled,
+        });
+
+        const layerId = store.activeLayerId;
+        const index = store.getActiveLayer()?.objects.length ?? 0;
+
+        store.addObject(layerId, textObj);
+        store.setSelection([textObj.id]);
+        store.pushHistory("Add text", [
+          { type: "add-object", layerId, object: textObj, index },
+        ]);
+        canvasState.setActiveTool("selection");
+      } else {
+        const existing = store.getObject(textSession.objectId);
+        if (!existing || existing.type !== "text") return;
+
+        const layerId = store.getObjectLayerId(textSession.objectId);
+        if (!layerId) return;
+
+        const snap = editSnapshotRef.current ?? existing;
+        const style = textStyleFromOptions(canvasState.textOptions);
+        const after = {
+          content: trimmed,
+          ...style,
+        };
+
+        store.updateObject(textSession.objectId, after);
+        store.setSelection([textSession.objectId]);
+        store.pushHistory("Edit text", [
+          {
+            type: "modify-object",
+            objectId: textSession.objectId,
+            layerId,
+            before: {
+              content: snap.content,
+              fontFamily: snap.fontFamily,
+              fontSize: snap.fontSize,
+              fontWeight: snap.fontWeight,
+              fontStyle: snap.fontStyle,
+              textAlign: snap.textAlign,
+            },
+            after,
+          },
+        ]);
+        canvasState.setActiveTool("selection");
+      }
+
+      editSnapshotRef.current = null;
+      setTextSession(null);
+      setTextDraft("");
+    } finally {
+      committingTextRef.current = false;
+    }
+  }, [textDraft, textSession, cancelTextEdit]);
+
+  const startNewTextEdit = useCallback((point: Point2D) => {
+    setTextSession({ mode: "new", point });
+    setTextDraft("");
+  }, []);
+
+  const startEditText = useCallback((obj: TextObject) => {
+    const canvasState = useCanvasStore.getState();
+    canvasState.setTextOptions({
+      fontFamily: obj.fontFamily,
+      fontSize: obj.fontSize,
+      fontWeight: obj.fontWeight,
+      fontStyle: obj.fontStyle,
+      textAlign: normalizeTextAlign(obj.textAlign),
+    });
+    if (obj.fill?.type === "solid") {
+      canvasState.setFillColor(obj.fill.color);
+    }
+
+    editSnapshotRef.current = structuredClone(obj);
+    setTextSession({
+      mode: "edit",
+      objectId: obj.id,
+      point: { x: obj.transform.x, y: obj.transform.y },
+    });
+    setTextDraft(obj.content);
+    canvasState.setActiveTool("text");
+  }, []);
+
+  // Live preview while editing existing text
+  useEffect(() => {
+    if (textSession?.mode !== "edit") return;
+
+    const store = useDocumentStore.getState();
+    const obj = store.getObject(textSession.objectId);
+    if (!obj || obj.type !== "text") return;
+
+    store.updateObject(textSession.objectId, {
+      content: textDraft,
+      ...textStyleFromOptions(textOptions),
+    });
+  }, [textDraft, textOptions, textSession]);
 
   const handleUtilityClick = useCallback(
     (point: Point2D) => {
@@ -120,7 +270,6 @@ export function VectorCanvas() {
 
       switch (activeTool) {
         case "eraser": {
-          // Eraser: click to delete
           if (hit) {
             const layerId = store.getObjectLayerId(hit.object.id);
             if (layerId) {
@@ -135,12 +284,11 @@ export function VectorCanvas() {
           break;
         }
         case "fill": {
-          // Fill bucket: click to set fill
           if (hit) {
-            const { fillColor, fillEnabled } = useCanvasStore.getState();
+            const { fillColor: fc, fillEnabled: fe } = useCanvasStore.getState();
             const before = hit.object.fill;
-            const after = fillEnabled
-              ? { type: "solid" as const, color: fillColor, opacity: 1 }
+            const after = fe
+              ? { type: "solid" as const, color: fc, opacity: 1 }
               : null;
             const layerId = store.getObjectLayerId(hit.object.id);
             if (layerId) {
@@ -159,13 +307,11 @@ export function VectorCanvas() {
           break;
         }
         case "eyedropper": {
-          // Eyedropper: pick fill color
           if (hit && hit.object.fill && hit.object.fill.type === "solid") {
             useCanvasStore.getState().setFillColor(hit.object.fill.color);
           } else if (hit && hit.object.stroke) {
             useCanvasStore.getState().setStrokeColor(hit.object.stroke.color);
           }
-          // Switch to selection after picking
           useCanvasStore.getState().setActiveTool("selection");
           break;
         }
@@ -173,52 +319,6 @@ export function VectorCanvas() {
     },
     [activeTool],
   );
-
-  // ---- Text tool handler ----
-
-  const handleTextClick = useCallback(
-    (point: Point2D) => {
-      const text = prompt("Enter text:");
-      if (!text) return;
-
-      const { fillColor, fillEnabled } = useCanvasStore.getState();
-
-      const textObj: TextObject = {
-        id: uuidv4(),
-        type: "text",
-        name: "Text",
-        transform: createTransform(point.x, point.y),
-        fill: fillEnabled ? createSolidFill(fillColor, 1) : createSolidFill("#000000", 1),
-        stroke: null,
-        opacity: 1,
-        visible: true,
-        locked: false,
-        content: text,
-        fontFamily: "Arial",
-        fontSize: 24,
-        fontWeight: "normal",
-        fontStyle: "normal",
-        textAlign: "left",
-        lineHeight: 1.2,
-      };
-
-      const store = useDocumentStore.getState();
-      const layerId = store.activeLayerId;
-      const index = store.getActiveLayer()?.objects.length ?? 0;
-
-      store.addObject(layerId, textObj);
-      store.setSelection([textObj.id]);
-      store.pushHistory("Add text", [
-        { type: "add-object", layerId, object: textObj, index },
-      ]);
-
-      // Switch to selection tool after placing text
-      useCanvasStore.getState().setActiveTool("selection");
-    },
-    [],
-  );
-
-  // ---- Pointer events ----
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -241,10 +341,18 @@ export function VectorCanvas() {
       } else if (activeTool === "eraser" || activeTool === "fill" || activeTool === "eyedropper") {
         handleUtilityClick(point);
       } else if (activeTool === "text") {
-        handleTextClick(point);
+        startNewTextEdit(point);
       }
     },
-    [activeTool, getCanvasPoint, selectionTool, shapeTool, freehandTool, handleUtilityClick, handleTextClick],
+    [
+      activeTool,
+      getCanvasPoint,
+      selectionTool,
+      shapeTool,
+      freehandTool,
+      handleUtilityClick,
+      startNewTextEdit,
+    ],
   );
 
   const handlePointerMove = useCallback(
@@ -255,7 +363,7 @@ export function VectorCanvas() {
       currentPointRef.current = point;
       setCursorPosition({ x: point.x, y: point.y });
 
-      if (!pointerDownRef.current) return;
+      if (!pointerDownRef.current || textSession) return;
 
       if (activeTool === "selection") {
         selectionTool.onPointerMove(point);
@@ -265,10 +373,18 @@ export function VectorCanvas() {
         freehandTool.onPointerMove(point);
       }
 
-      // Imperatively re-render overlay for smooth feedback
       renderOverlay();
     },
-    [activeTool, getCanvasPoint, setCursorPosition, selectionTool, shapeTool, freehandTool, renderOverlay],
+    [
+      activeTool,
+      getCanvasPoint,
+      setCursorPosition,
+      selectionTool,
+      shapeTool,
+      freehandTool,
+      renderOverlay,
+      textSession,
+    ],
   );
 
   const handlePointerUp = useCallback(
@@ -282,6 +398,8 @@ export function VectorCanvas() {
       pointerDownRef.current = false;
       currentPointRef.current = point;
 
+      if (textSession) return;
+
       if (activeTool === "selection") {
         selectionTool.onPointerUp(point);
       } else if (SHAPE_TOOLS.has(activeTool)) {
@@ -292,16 +410,34 @@ export function VectorCanvas() {
 
       renderOverlay();
     },
-    [activeTool, getCanvasPoint, selectionTool, shapeTool, freehandTool, renderOverlay],
+    [activeTool, getCanvasPoint, selectionTool, shapeTool, freehandTool, renderOverlay, textSession],
+  );
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (textSession) return;
+
+      const point = getCanvasPoint(e);
+      if (!point) return;
+
+      const ctx = mainCanvasRef.current?.getContext("2d");
+      if (!ctx) return;
+
+      const hit = hitTestLayers(ctx, point, useDocumentStore.getState().layers);
+      if (hit?.object.type === "text") {
+        e.preventDefault();
+        startEditText(hit.object);
+      }
+    },
+    [getCanvasPoint, startEditText, textSession],
   );
 
   const handleMouseLeave = useCallback(() => {
     setCursorPosition(null);
   }, [setCursorPosition]);
 
-  // ---- Cursor style ----
-
   const getCursor = useCallback(() => {
+    if (textSession) return "text";
     switch (activeTool) {
       case "selection":
         return "default";
@@ -323,9 +459,7 @@ export function VectorCanvas() {
       default:
         return "default";
     }
-  }, [activeTool]);
-
-  // ---- Prevent touch defaults ----
+  }, [activeTool, textSession]);
 
   useEffect(() => {
     const canvas = eventCanvasRef.current;
@@ -339,6 +473,20 @@ export function VectorCanvas() {
     };
   }, []);
 
+  // Commit when clicking outside the text editor (canvas uses pointer-events: none)
+  useEffect(() => {
+    if (!textSession) return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-text-editor]")) return;
+      commitTextEdit();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [textSession, commitTextEdit]);
+
   return (
     <div
       className="relative bg-gray-200 overflow-hidden"
@@ -350,7 +498,6 @@ export function VectorCanvas() {
         justifyContent: "center",
       }}
     >
-      {/* Zoom/pan wrapper */}
       <div
         className="relative shadow-lg"
         style={{
@@ -360,7 +507,6 @@ export function VectorCanvas() {
           transformOrigin: "center center",
         }}
       >
-        {/* Checkerboard transparency background */}
         <div
           className="absolute inset-0"
           style={{
@@ -375,10 +521,8 @@ export function VectorCanvas() {
           }}
         />
 
-        {/* White background */}
         <div className="absolute inset-0 bg-white" />
 
-        {/* Main scene canvas */}
         <canvas
           ref={mainCanvasRef}
           width={canvasSize.width}
@@ -386,7 +530,6 @@ export function VectorCanvas() {
           className="absolute top-0 left-0 pointer-events-none"
         />
 
-        {/* Overlay canvas (selection handles, previews) */}
         <canvas
           ref={overlayCanvasRef}
           width={canvasSize.width}
@@ -394,16 +537,33 @@ export function VectorCanvas() {
           className="absolute top-0 left-0 pointer-events-none"
         />
 
-        {/* Event capture canvas */}
+        {textSession && (
+          <TextEditor
+            x={textSession.point.x}
+            y={textSession.point.y}
+            value={textDraft}
+            onChange={setTextDraft}
+            onCommit={commitTextEdit}
+            onCancel={cancelTextEdit}
+            textOptions={textOptions}
+            fillColor={fillColor}
+          />
+        )}
+
         <canvas
           ref={eventCanvasRef}
           width={canvasSize.width}
           height={canvasSize.height}
           className="absolute top-0 left-0"
-          style={{ cursor: getCursor(), touchAction: "none" }}
+          style={{
+            cursor: getCursor(),
+            touchAction: "none",
+            pointerEvents: textSession ? "none" : "auto",
+          }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onDoubleClick={handleDoubleClick}
           onMouseLeave={handleMouseLeave}
         />
       </div>
