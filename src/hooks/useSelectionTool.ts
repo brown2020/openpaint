@@ -194,6 +194,7 @@ function extractResizeProps(obj: VectorObject): Record<string, unknown> {
   const base = { transform: { ...obj.transform } };
   switch (obj.type) {
     case "rectangle":
+    case "image":
       return { ...base, width: obj.width, height: obj.height };
     case "ellipse":
       return { ...base, radiusX: obj.radiusX, radiusY: obj.radiusY };
@@ -312,6 +313,7 @@ function applyResize(
     // Scale dimensions
     switch (obj.type) {
       case "rectangle":
+      case "image":
         updates.width = (origP.width as number) * sx;
         updates.height = (origP.height as number) * sy;
         break;

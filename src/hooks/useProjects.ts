@@ -17,13 +17,16 @@ import {
 import {
   uploadLayerImage,
   uploadThumbnail,
-  downloadLayerImage,
   deleteProjectFiles,
   canvasToBlob,
-  loadImageToCanvas,
 } from "@/lib/firebase/storage";
 import { renderScene } from "@/lib/vector/renderer";
-import { createLayer as createVectorLayer, type VectorLayer } from "@/types/vector";
+import {
+  buildEmptyVectorLayersFromMetadata,
+  fetchLegacyRasterLayers,
+  projectNeedsLegacyRasterImport,
+} from "@/lib/vector/legacyProjectImport";
+import type { VectorLayer } from "@/types/vector";
 import type { Size } from "@/types";
 
 export function useProjects() {
@@ -35,7 +38,6 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
-    pendingLayerLoads,
     setProjects,
     addProject,
     removeProject,
@@ -47,7 +49,6 @@ export function useProjects() {
     setLastSyncTime,
     markDirty,
     clearDirty,
-    clearPendingLayerLoad,
   } = useProjectStore();
 
   const fetchProjects = useCallback(async () => {
@@ -103,6 +104,7 @@ export function useProjects() {
       } catch (error) {
         console.error("Failed to create project:", error);
         setError("Failed to create project. Please try again.");
+        setLoading(false);
         return null;
       }
     },
@@ -121,22 +123,28 @@ export function useProjects() {
         const project = await getProject(projectId);
         if (!project || project.userId !== user.uid) {
           setError("Project not found or access denied.");
+          setSyncStatus("error");
           setLoading(false);
           return false;
         }
 
         let vectorLayers: VectorLayer[];
 
-        if (project.vectorLayers && Array.isArray(project.vectorLayers) && project.vectorLayers.length > 0) {
+        if (
+          projectNeedsLegacyRasterImport(project.vectorLayers, project.layers)
+        ) {
+          vectorLayers = await fetchLegacyRasterLayers(
+            project.layers,
+            project.canvasSize,
+          );
+        } else if (
+          project.vectorLayers &&
+          Array.isArray(project.vectorLayers) &&
+          project.vectorLayers.length > 0
+        ) {
           vectorLayers = project.vectorLayers as VectorLayer[];
         } else {
-          vectorLayers = project.layers.map((layerMeta) => {
-            const vl = createVectorLayer(layerMeta.id, layerMeta.name);
-            vl.visible = layerMeta.visible;
-            vl.locked = layerMeta.locked;
-            vl.opacity = layerMeta.opacity;
-            return vl;
-          });
+          vectorLayers = buildEmptyVectorLayersFromMetadata(project.layers);
         }
 
         setCurrentProject(projectId, project.name);
@@ -174,6 +182,9 @@ export function useProjects() {
 
   const saveProject = useCallback(async () => {
     if (!user || !currentProjectId) return false;
+
+    const { syncStatus } = useProjectStore.getState();
+    if (syncStatus === "syncing") return false;
 
     setSyncStatus("syncing");
     setError(null);
@@ -347,28 +358,6 @@ export function useProjects() {
     [user, currentProjectId, setError, updateProjectInList, setCurrentProject]
   );
 
-  const loadPendingLayerImage = useCallback(
-    async (layerId: string, canvas: HTMLCanvasElement) => {
-      const storageRef = pendingLayerLoads[layerId];
-      if (!storageRef) return;
-
-      try {
-        const url = await downloadLayerImage(storageRef);
-        await loadImageToCanvas(url, canvas);
-        clearPendingLayerLoad(layerId);
-      } catch (error) {
-        console.error(`Failed to load layer ${layerId}:`, error);
-        clearPendingLayerLoad(layerId);
-        if (error instanceof Error && error.message.includes("CORS")) {
-          setError(
-            "Failed to load project images. Firebase Storage CORS may not be configured for your domain."
-          );
-        }
-      }
-    },
-    [pendingLayerLoads, clearPendingLayerLoad, setError]
-  );
-
   return {
     projects,
     currentProjectId,
@@ -376,14 +365,12 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
-    pendingLayerLoads,
     fetchProjects,
     createNewProject,
     loadProject,
     saveProject,
     deleteProject,
     renameProject,
-    loadPendingLayerImage,
     markDirty,
   };
 }
