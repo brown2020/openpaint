@@ -18,9 +18,6 @@ interface ProjectState {
   lastSyncTime: number | null;
   isDirty: boolean;
 
-  // Pending layer loads (layerId -> storageRef)
-  pendingLayerLoads: Record<string, string>;
-
   // Actions
   setProjects: (projects: ProjectDocument[]) => void;
   addProject: (project: ProjectDocument) => void;
@@ -39,9 +36,6 @@ interface ProjectState {
   markDirty: () => void;
   clearDirty: () => void;
 
-  setPendingLayerLoads: (loads: Record<string, string>) => void;
-  clearPendingLayerLoad: (layerId: string) => void;
-
   clearError: () => void;
   reset: () => void;
 }
@@ -55,7 +49,6 @@ const initialState = {
   syncStatus: "synced" as SyncStatus,
   lastSyncTime: null,
   isDirty: false,
-  pendingLayerLoads: {} as Record<string, string>,
 };
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -103,14 +96,6 @@ export const useProjectStore = create<ProjectState>((set) => ({
   setLastSyncTime: (lastSyncTime) => set({ lastSyncTime }),
   markDirty: () => set({ isDirty: true }),
   clearDirty: () => set({ isDirty: false }),
-
-  setPendingLayerLoads: (loads) => set({ pendingLayerLoads: loads }),
-  clearPendingLayerLoad: (layerId) =>
-    set((state) => {
-      const rest = { ...state.pendingLayerLoads };
-      delete rest[layerId];
-      return { pendingLayerLoads: rest };
-    }),
 
   clearError: () => set({ error: null }),
 

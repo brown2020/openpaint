@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useAuthStore } from "@/store/authStore";
-import { useLayers } from "@/hooks/useLayers";
+import { useDocumentStore } from "@/store/documentStore";
 import { UserMenu } from "@/components/auth/UserMenu";
 
 interface ToolbarProps {
@@ -32,19 +32,18 @@ export function Toolbar({
 }: ToolbarProps) {
   const { zoom, zoomIn, zoomOut, resetZoom } = useCanvasStore();
   const { user } = useAuthStore();
-  const { getActiveLayerCanvas } = useLayers();
+  const clearActiveLayer = useDocumentStore((s) => s.clearActiveLayer);
+  const activeLayer = useDocumentStore((s) =>
+    s.layers.find((l) => l.id === s.activeLayerId),
+  );
 
   const handleClear = useCallback(() => {
-    const canvas = getActiveLayerCanvas();
-    if (!canvas) return;
+    if (!activeLayer || activeLayer.objects.length === 0) return;
 
     if (confirm("Are you sure you want to clear the current layer?")) {
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
+      clearActiveLayer();
     }
-  }, [getActiveLayerCanvas]);
+  }, [activeLayer, clearActiveLayer]);
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white">

@@ -7,6 +7,7 @@ import type {
   HistoryOperation,
 } from "@/types/vector";
 import { createLayer } from "@/types/vector";
+import { markDocumentDirty } from "@/lib/sync/documentDirty";
 
 // ============================================
 // Document Store — Scene Graph + History
@@ -62,6 +63,7 @@ interface DocumentState {
   // Document actions
   newDocument: (width?: number, height?: number) => void;
   loadDocument: (layers: VectorLayer[], activeLayerId: string) => void;
+  clearActiveLayer: () => void;
 }
 
 const DEFAULT_LAYER_NAME = "Layer 1";
@@ -97,6 +99,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         layers: [...state.layers, layer],
         activeLayerId: id,
       }));
+      markDocumentDirty();
 
       return id;
     },
@@ -116,16 +119,19 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         activeLayerId: newActiveId,
         selectedObjectIds: [],
       });
+      markDocumentDirty();
     },
 
     setActiveLayer: (layerId) => set({ activeLayerId: layerId }),
 
-    updateLayer: (layerId, updates) =>
+    updateLayer: (layerId, updates) => {
       set((state) => ({
         layers: state.layers.map((l) =>
           l.id === layerId ? { ...l, ...updates } : l,
         ),
-      })),
+      }));
+      markDocumentDirty();
+    },
 
     reorderLayer: (fromIndex, toIndex) => {
       set((state) => {
@@ -134,6 +140,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         newLayers.splice(toIndex, 0, removed);
         return { layers: newLayers };
       });
+      markDocumentDirty();
     },
 
     // ---- Object actions ----
@@ -151,6 +158,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           return { ...layer, objects };
         }),
       }));
+      markDocumentDirty();
     },
 
     removeObject: (objectId) => {
@@ -163,6 +171,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           (id) => id !== objectId,
         ),
       }));
+      markDocumentDirty();
     },
 
     updateObject: (objectId, updates) => {
@@ -174,6 +183,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           ),
         })),
       }));
+      markDocumentDirty();
     },
 
     reorderObject: (layerId, fromIndex, toIndex) => {
@@ -186,6 +196,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           return { ...layer, objects };
         }),
       }));
+      markDocumentDirty();
     },
 
     // ---- Selection actions ----
@@ -263,6 +274,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
           historyIndex: newHistory.length - 1,
         };
       });
+      markDocumentDirty();
     },
 
     undo: () => {
@@ -272,6 +284,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       const entry = history[historyIndex];
       applyOperationsReverse(get, set, entry.operations);
       set({ historyIndex: historyIndex - 1 });
+      markDocumentDirty();
     },
 
     redo: () => {
@@ -281,6 +294,7 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       const entry = history[historyIndex + 1];
       applyOperationsForward(get, set, entry.operations);
       set({ historyIndex: historyIndex + 1 });
+      markDocumentDirty();
     },
 
     canUndo: () => get().historyIndex >= 0,
@@ -357,6 +371,28 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
         history: [],
         historyIndex: -1,
       });
+    },
+
+    clearActiveLayer: () => {
+      const { layers, activeLayerId } = get();
+      const layer = layers.find((l) => l.id === activeLayerId);
+      if (!layer || layer.objects.length === 0) return;
+
+      const operations: HistoryOperation[] = layer.objects.map((object, index) => ({
+        type: "remove-object" as const,
+        layerId: activeLayerId,
+        object,
+        index,
+      }));
+
+      set((state) => ({
+        layers: state.layers.map((l) =>
+          l.id === activeLayerId ? { ...l, objects: [] } : l,
+        ),
+        selectedObjectIds: [],
+      }));
+
+      get().pushHistory("Clear layer", operations);
     },
   };
 });
