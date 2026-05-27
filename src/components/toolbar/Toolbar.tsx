@@ -15,6 +15,8 @@ interface ToolbarProps {
   onExport: () => void;
   onNew: () => void;
   onOpen: () => void;
+  onSignIn?: () => void;
+  saveTitle?: string;
 }
 
 /**
@@ -29,6 +31,8 @@ export function Toolbar({
   onExport,
   onNew,
   onOpen,
+  onSignIn,
+  saveTitle = "Save (Ctrl+S)",
 }: ToolbarProps) {
   const { zoom, zoomIn, zoomOut, resetZoom } = useCanvasStore();
   const { user } = useAuthStore();
@@ -62,7 +66,7 @@ export function Toolbar({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
           </svg>
         </ToolbarButton>
-        <ToolbarButton onClick={onSave} title="Save (Ctrl+S)">
+        <ToolbarButton onClick={onSave} title={saveTitle}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
@@ -123,8 +127,18 @@ export function Toolbar({
         Press B for Brush, E for Eraser, [ ] for size
       </div>
 
-      {/* User Menu */}
-      {user && <UserMenu />}
+      {/* Auth */}
+      {user ? (
+        <UserMenu />
+      ) : onSignIn ? (
+        <button
+          type="button"
+          onClick={onSignIn}
+          className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+        >
+          Sign in
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -6,3 +6,8 @@ export { EmailLinkForm } from "./EmailLinkForm";
 export { ForgotPasswordForm } from "./ForgotPasswordForm";
 export { GoogleSignInButton } from "./GoogleSignInButton";
 export { UserMenu } from "./UserMenu";
+export {
+  GuestSignInBanner,
+  getGuestBannerDismissed,
+  setGuestBannerDismissed,
+} from "./GuestSignInBanner";

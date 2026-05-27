@@ -74,7 +74,8 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Gradient authoring UI | **Not implemented** | Renderer can draw gradients if set on object |
 | On-canvas rotation handle | **Not implemented** | Rotation numeric in Properties only |
 | Cloud projects | **Working** | CRUD, thumbnails, `vectorLayers` in Firestore |
-| Auto-save | **Hook only** | 30s interval + 2s debounce; **`markDirty()` never called** — auto-save likely never triggers on edits |
+| Auto-save | **Working** | Debounced save when signed in with open project |
+| Guest-first entry | **Working** | No blocking auth modal; dismissable cloud banner |
 | Local project JSON | **Working** | v2 `localStorage` / file open for `version` 2.x |
 | Legacy raster load | **Gap** | Opening old PNG-only layer projects may show empty vector layers unless `vectorLayers` populated |
 | Auth modal on load | **Strict** | If Firebase configured and signed out, modal blocks UI (not closable) |
@@ -126,8 +127,7 @@ flowchart TD
 
 ### Known limitations
 
-1. **Auto-save dirty flag** — `markDirty()` defined but never invoked; status bar “unsaved” may not reflect edits; debounced auto-save may not run.
-2. **Auth blocks guest creativity** — When Firebase is configured, unsigned users see a mandatory auth modal (differs from “instant start” goal in prior planning docs).
+1. **Cloud save requires sign-in** — Guests save locally; cloud projects require authentication (by design).
 3. **Text UX** — `prompt()` only; no re-edit on canvas.
 4. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
 5. **Toolbar Clear** — Clears legacy raster canvas, not vector document.
@@ -142,31 +142,29 @@ flowchart TD
 
 Ordered by **user value** and **dependency**. Each item is sized for one focused commit sequence on `dev`.
 
-### Milestone 1 — Cloud save actually auto-saves
+### Milestone 1 — Cloud save actually auto-saves ✅
 
 **User value:** Signed-in users trust that work is saved without pressing Save.
 
-**Acceptance criteria:**
+**Status:** Complete.
 
-- After any undoable document change (add/modify/remove object or layer), `isDirty` becomes true and debounced save runs within ~2s when authenticated.
-- Status bar shows “Unsaved changes” until sync completes, then “Saved”.
-- Manual Save still works.
-
-**Implementation intent:** Call `markDirty()` from `documentStore` mutations and/or `pushHistory` completion; avoid marking dirty on load. Verify `useAutoSave` debounce path.
+**Implementation note:** `markDocumentDirty()` in `src/lib/sync/documentDirty.ts` is called from `documentStore` mutations, `pushHistory`, and undo/redo. `useAutoSave` debounces on `isDirty`.
 
 ---
 
-### Milestone 2 — Guest-first canvas (optional auth)
+### Milestone 2 — Guest-first canvas (optional auth) ✅
 
 **User value:** New visitors can draw immediately; sign-in is for cloud features only.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- With Firebase configured, unsigned users reach a blank (or last local) canvas without a blocking modal.
-- Dismissable banner: “Sign in to save to the cloud” with action to open auth.
-- Auth modal appears when user chooses Open Cloud Projects, Save to cloud, or equivalent — not on first paint.
+- [x] With Firebase configured, unsigned users reach a blank (or last local) canvas without a blocking modal.
+- [x] Dismissable banner with sign-in and cloud-project actions.
+- [x] Auth modal opens only when user requests cloud features (banner, toolbar Sign in, Cloud projects).
 
-**Implementation intent:** Adjust `page.tsx` modal gating; keep project list behind auth.
+**Implementation note:** `GuestSignInBanner` + on-demand `AuthModal` in `page.tsx`; local project restore from `localStorage` for guests; toolbar Sign in for guests.
 
 ---
 
