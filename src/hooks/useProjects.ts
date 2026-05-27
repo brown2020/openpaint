@@ -17,10 +17,8 @@ import {
 import {
   uploadLayerImage,
   uploadThumbnail,
-  downloadLayerImage,
   deleteProjectFiles,
   canvasToBlob,
-  loadImageToCanvas,
 } from "@/lib/firebase/storage";
 import { renderScene } from "@/lib/vector/renderer";
 import { createLayer as createVectorLayer, type VectorLayer } from "@/types/vector";
@@ -35,7 +33,6 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
-    pendingLayerLoads,
     setProjects,
     addProject,
     removeProject,
@@ -47,8 +44,6 @@ export function useProjects() {
     setLastSyncTime,
     markDirty,
     clearDirty,
-    setPendingLayerLoads,
-    clearPendingLayerLoad,
   } = useProjectStore();
 
   const fetchProjects = useCallback(async () => {
@@ -175,6 +170,9 @@ export function useProjects() {
 
   const saveProject = useCallback(async () => {
     if (!user || !currentProjectId) return false;
+
+    const { syncStatus } = useProjectStore.getState();
+    if (syncStatus === "syncing") return false;
 
     setSyncStatus("syncing");
     setError(null);
@@ -348,28 +346,6 @@ export function useProjects() {
     [user, currentProjectId, setError, updateProjectInList, setCurrentProject]
   );
 
-  const loadPendingLayerImage = useCallback(
-    async (layerId: string, canvas: HTMLCanvasElement) => {
-      const storageRef = pendingLayerLoads[layerId];
-      if (!storageRef) return;
-
-      try {
-        const url = await downloadLayerImage(storageRef);
-        await loadImageToCanvas(url, canvas);
-        clearPendingLayerLoad(layerId);
-      } catch (error) {
-        console.error(`Failed to load layer ${layerId}:`, error);
-        clearPendingLayerLoad(layerId);
-        if (error instanceof Error && error.message.includes("CORS")) {
-          setError(
-            "Failed to load project images. Firebase Storage CORS may not be configured for your domain."
-          );
-        }
-      }
-    },
-    [pendingLayerLoads, clearPendingLayerLoad, setError]
-  );
-
   return {
     projects,
     currentProjectId,
@@ -377,14 +353,12 @@ export function useProjects() {
     syncStatus,
     lastSyncTime,
     isDirty,
-    pendingLayerLoads,
     fetchProjects,
     createNewProject,
     loadProject,
     saveProject,
     deleteProject,
     renameProject,
-    loadPendingLayerImage,
     markDirty,
   };
 }

@@ -109,12 +109,10 @@ npm run lint         # ESLint (eslint-config-next)
 Run before committing on `dev`:
 
 ```bash
-npm run build
+CI=true npm run lint && CI=true npm run typecheck && CI=true npm run test && CI=true npm run build
 ```
 
-`npm run lint` is configured but may fail on ESLint 10 with `eslint-config-next` (pre-existing `react/display-name` loader error). Treat **`npm run build`** as the reliable gate until lint is repaired.
-
-There is **no** `test` or `typecheck` npm script. TypeScript is checked during `next build`. Optional manual check: `npx tsc --noEmit`.
+TypeScript is also checked during `next build`; `typecheck` catches issues faster without a full compile.
 
 ## Non-interactive testing rules
 

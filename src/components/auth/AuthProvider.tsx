@@ -49,6 +49,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
           window.history.replaceState(null, "", window.location.pathname);
         } catch (error) {
           setError(getAuthErrorMessage(error));
+        } finally {
+          setLoading(false);
         }
       }
     };
