@@ -1,8 +1,11 @@
 import type {
   Fill,
+  GradientStop,
+  LinearGradientFill,
   PathObject,
   PathSegment,
   PolygonObject,
+  RadialGradientFill,
   RectangleObject,
   StrokeStyle,
   TextObject,
@@ -57,6 +60,76 @@ export function pathSegmentsToD(segments: PathSegment[]): string {
   return parts.join(" ");
 }
 
+/** Clamp corner radii so adjacent corners do not overlap on an edge */
+export function clampCornerRadii(
+  width: number,
+  height: number,
+  radii: [number, number, number, number],
+): [number, number, number, number] {
+  const [tl, tr, br, bl] = radii.map((r) => Math.max(0, r)) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+
+  const scale = Math.min(
+    1,
+    tl + tr > width && width > 0 ? width / (tl + tr) : 1,
+    bl + br > width && width > 0 ? width / (bl + br) : 1,
+    tl + bl > height && height > 0 ? height / (tl + bl) : 1,
+    tr + br > height && height > 0 ? height / (tr + br) : 1,
+  );
+
+  return [tl * scale, tr * scale, br * scale, bl * scale];
+}
+
+/** SVG path `d` for a rectangle with independent corner radii (TL, TR, BR, BL) */
+export function roundedRectPathD(
+  width: number,
+  height: number,
+  radii: [number, number, number, number],
+): string {
+  const [tl, tr, br, bl] = clampCornerRadii(width, height, radii);
+  const w = width;
+  const h = height;
+
+  const parts: string[] = [`M ${tl} 0`, `H ${w - tr}`];
+
+  if (tr > 0) {
+    parts.push(`A ${tr} ${tr} 0 0 1 ${w} ${tr}`);
+  } else {
+    parts.push(`L ${w} 0`);
+  }
+
+  parts.push(`V ${h - br}`);
+
+  if (br > 0) {
+    parts.push(`A ${br} ${br} 0 0 1 ${w - br} ${h}`);
+  } else {
+    parts.push(`L ${w} ${h}`);
+  }
+
+  parts.push(`H ${bl}`);
+
+  if (bl > 0) {
+    parts.push(`A ${bl} ${bl} 0 0 1 0 ${h - bl}`);
+  } else {
+    parts.push(`L 0 ${h}`);
+  }
+
+  parts.push(`V ${tl}`);
+
+  if (tl > 0) {
+    parts.push(`A ${tl} ${tl} 0 0 1 ${tl} 0`);
+  } else {
+    parts.push(`L 0 0`);
+  }
+
+  parts.push("Z");
+  return parts.join(" ");
+}
+
 function transformToSvg(t: Transform2D): string {
   const parts: string[] = [`translate(${t.x},${t.y})`];
   if (t.rotation !== 0) {
@@ -70,8 +143,7 @@ function transformToSvg(t: Transform2D): string {
 
 function solidFillAttrs(fill: Fill): string {
   if (fill.type !== "solid") return "";
-  const opacity =
-    fill.opacity < 1 ? ` fill-opacity="${fill.opacity}"` : "";
+  const opacity = fill.opacity < 1 ? ` fill-opacity="${fill.opacity}"` : "";
   return ` fill="${escapeXml(fill.color)}"${opacity}`;
 }
 
@@ -92,11 +164,72 @@ function strokeAttrs(stroke: StrokeStyle): string {
   );
 }
 
-function paintAttrs(fill: Fill | null, stroke: StrokeStyle | null): string {
-  let attrs = "";
-  if (fill?.type === "solid") {
-    attrs += solidFillAttrs(fill);
+function gradientStopsMarkup(stops: GradientStop[]): string {
+  return stops
+    .map(
+      (stop) =>
+        `<stop offset="${stop.offset}" stop-color="${escapeXml(stop.color)}" stop-opacity="${stop.opacity}"/>`,
+    )
+    .join("");
+}
+
+function linearGradientDef(id: string, fill: LinearGradientFill): string {
+  return (
+    `<linearGradient id="${id}" x1="${fill.startX}" y1="${fill.startY}" ` +
+    `x2="${fill.endX}" y2="${fill.endY}" gradientUnits="userSpaceOnUse">` +
+    `${gradientStopsMarkup(fill.stops)}</linearGradient>`
+  );
+}
+
+function radialGradientDef(id: string, fill: RadialGradientFill): string {
+  return (
+    `<radialGradient id="${id}" cx="${fill.centerX}" cy="${fill.centerY}" r="${fill.radius}" ` +
+    `gradientUnits="userSpaceOnUse">` +
+    `${gradientStopsMarkup(fill.stops)}</radialGradient>`
+  );
+}
+
+class SvgExportContext {
+  private defs: string[] = [];
+  private gradientCounter = 0;
+  private gradientIds = new Map<string, string>();
+
+  fillAttrs(fill: Fill | null): string {
+    if (!fill) return "";
+    if (fill.type === "solid") return solidFillAttrs(fill);
+    const id = this.gradientId(fill);
+    return ` fill="url(#${id})"`;
   }
+
+  private gradientId(fill: LinearGradientFill | RadialGradientFill): string {
+    const key = JSON.stringify(fill);
+    const existing = this.gradientIds.get(key);
+    if (existing) return existing;
+
+    const id = `op-gradient-${++this.gradientCounter}`;
+    this.gradientIds.set(key, id);
+
+    if (fill.type === "linear-gradient") {
+      this.defs.push(linearGradientDef(id, fill));
+    } else {
+      this.defs.push(radialGradientDef(id, fill));
+    }
+
+    return id;
+  }
+
+  defsMarkup(): string {
+    if (this.defs.length === 0) return "";
+    return `<defs>\n${this.defs.join("\n")}\n</defs>\n`;
+  }
+}
+
+function paintAttrs(
+  ctx: SvgExportContext,
+  fill: Fill | null,
+  stroke: StrokeStyle | null,
+): string {
+  let attrs = ctx.fillAttrs(fill);
   if (stroke) {
     attrs += strokeAttrs(stroke);
   }
@@ -126,21 +259,24 @@ function textAnchor(align: CanvasTextAlign): string {
   return "start";
 }
 
-function objectToSvg(obj: VectorObject): string {
+function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
   if (!obj.visible) return "";
 
   const transform = ` transform="${escapeXml(transformToSvg(obj.transform))}"`;
   const op = opacityAttr(obj.opacity);
-  const paint = paintAttrs(obj.fill, obj.stroke);
+  const paint = paintAttrs(ctx, obj.fill, obj.stroke);
 
   switch (obj.type) {
     case "rectangle": {
       const rect = obj as RectangleObject;
       const [tl, tr, br, bl] = rect.cornerRadius;
       const hasRadius = tl > 0 || tr > 0 || br > 0 || bl > 0;
-      const rx = hasRadius ? Math.max(tl, tr, br, bl) : 0;
-      const ryAttr = hasRadius ? ` rx="${rx}" ry="${rx}"` : "";
-      return `<rect x="0" y="0" width="${rect.width}" height="${rect.height}"${ryAttr}${transform}${op}${paint} />`;
+      if (hasRadius) {
+        const d = roundedRectPathD(rect.width, rect.height, [tl, tr, br, bl]);
+        const fillRule = rect.fill ? ' fill-rule="evenodd"' : "";
+        return `<path d="${d}"${transform}${op}${paint}${fillRule} />`;
+      }
+      return `<rect x="0" y="0" width="${rect.width}" height="${rect.height}"${transform}${op}${paint} />`;
     }
     case "ellipse":
       return `<ellipse cx="0" cy="0" rx="${obj.radiusX}" ry="${obj.radiusY}"${transform}${op}${paint} />`;
@@ -167,8 +303,8 @@ function objectToSvg(obj: VectorObject): string {
         ` font-size="${text.fontSize}" font-weight="${text.fontWeight}"` +
         ` font-style="${text.fontStyle}" text-anchor="${anchor}"` +
         ` dominant-baseline="hanging"${transform}${op}`;
-      if (text.fill?.type === "solid") {
-        attrs += solidFillAttrs(text.fill);
+      if (text.fill) {
+        attrs += ctx.fillAttrs(text.fill);
       }
       if (text.stroke) {
         attrs += strokeAttrs(text.stroke);
@@ -176,7 +312,9 @@ function objectToSvg(obj: VectorObject): string {
       return `${attrs}>${escapeXml(text.content)}</text>`;
     }
     case "group": {
-      const inner = obj.children.map((child) => objectToSvg(child)).join("\n");
+      const inner = obj.children
+        .map((child) => objectToSvg(ctx, child))
+        .join("\n");
       return `<g${transform}${op}>\n${inner}\n</g>`;
     }
     default:
@@ -192,6 +330,7 @@ export function exportDocumentToSvg(
   options: SvgExportOptions,
 ): string {
   const { width, height, backgroundColor } = options;
+  const ctx = new SvgExportContext();
   const body: string[] = [];
 
   if (backgroundColor) {
@@ -205,7 +344,7 @@ export function exportDocumentToSvg(
 
     const layerParts: string[] = [];
     for (const obj of layer.objects) {
-      const svg = objectToSvg(obj);
+      const svg = objectToSvg(ctx, obj);
       if (svg) layerParts.push(svg);
     }
 
@@ -220,6 +359,7 @@ export function exportDocumentToSvg(
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
     `viewBox="0 0 ${width} ${height}">\n` +
+    ctx.defsMarkup() +
     `${body.join("\n")}\n` +
     `</svg>`
   );

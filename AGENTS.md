@@ -87,7 +87,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Auto-save hook | Present — **debounced save likely broken** (`markDirty` never called; see cautions) |
 | Pen tool | **Not implemented** |
 | Direct selection (anchor edit) | **Not implemented** |
-| SVG export | Working — scene graph to `.svg` (solid fill/stroke) |
+| SVG export | Working — scene graph to `.svg` (solid/gradient fill, per-corner radii) |
 | Groups (Ctrl+G UI) | **Not implemented** (renderer supports `group`) |
 | Gradient fills (UI) | **Not implemented** (types + renderer support gradients) |
 | On-canvas rotation handle | **Not implemented** (rotation via Properties panel only) |

@@ -65,7 +65,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Undo/redo | **Working** | Operation-based, max 200, on `documentStore` |
 | Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
 | PNG export | **Working** | White background composite |
-| SVG export | **Working** | Toolbar + Ctrl+Shift+E; rect, ellipse, line, path, polygon, text, group |
+| SVG export | **Working** | Solid + gradient fills; per-corner rounded rects; groups |
 | Pen tool (P) | **Not implemented** | No tool button |
 | Direct selection (A) | **Not implemented** | |
 | Groups UI | **Not implemented** | Model + renderer support `group` |
@@ -227,14 +227,18 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 **Implementation note:** `exportDocumentToSvg()` + `downloadSvgFile()` in `src/lib/vector/svgExport.ts`; toolbar SVG button and Ctrl+Shift+E; PNG export remains Ctrl+E.
 
-### Milestone 5 follow-up — SVG gradient fills and per-corner radii
+### Milestone 5 follow-up — SVG gradient fills and per-corner radii ✅
 
 **User value:** Exported SVG matches on-canvas gradient and rounded-rectangle appearance.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Linear/radial gradient fills export as SVG `<defs>` gradients.
-- Rectangle corner radii export per-corner (not single `rx` approximation).
+- [x] Linear/radial gradient fills export as SVG `<defs>` gradients.
+- [x] Rectangle corner radii export per-corner (not single `rx` approximation).
+
+**Implementation note:** `SvgExportContext` dedupes gradient defs; `roundedRectPathD()` with arc segments; `gradientUnits="userSpaceOnUse"` in object local space.
 
 ---
 
