@@ -35,7 +35,7 @@ src/
 ├── app/                 # layout.tsx (AuthProvider), page.tsx (entire SPA), error.tsx, globals.css
 ├── components/
 │   ├── auth/            # AuthModal, forms, UserMenu
-│   ├── canvas/          # VectorCanvas (active), legacy DrawingCanvas/LayerCanvas (unused in UI)
+│   ├── canvas/          # VectorCanvas, CanvasContainer
 │   ├── panels/          # LayersPanel, PropertiesPanel, StatusBar
 │   ├── projects/        # Project modals and dialogs
 │   ├── toolbar/         # Toolbar, ToolPanel, ColorPicker, BrushSettings
@@ -46,7 +46,7 @@ src/
 │   └── vector/          # renderer, hitTest, bounds
 ├── store/               # Zustand stores
 ├── types/               # ToolType + vector model (types/vector.ts)
-└── utils/               # colorUtils, drawing helpers, floodFill (legacy raster)
+└── utils/               # colorUtils
 ```
 
 Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.json`, `firestore.rules`, `storage.rules`, `cors.json`.
@@ -90,7 +90,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Groups (Ctrl+G UI) | **Not implemented** (renderer supports `group`) |
 | Gradient fills (UI) | **Not implemented** (types + renderer support gradients) |
 | On-canvas rotation handle | **Not implemented** (rotation via Properties panel only) |
-| Legacy raster stack | **Orphaned** — `DrawingCanvas`, `useDrawing`, `useHistory`, pixel `floodFill` unused by main UI |
+| Legacy raster state in `canvasStore` | **Partial** — layer canvas maps/history unused by `VectorCanvas`; trim in a dedicated pass |
 
 ## Important commands
 
@@ -178,7 +178,7 @@ TypeScript is also checked during `next build`; `typecheck` catches issues faste
 - `src/store/documentStore.ts` — undo/redo correctness; batch operations carefully.
 - `src/lib/vector/renderer.ts` — all visible output; regressions are user-visible.
 - `src/hooks/useProjects.ts` — save/load format (`vectorLayers` + Storage PNGs).
-- **Legacy raster files** — `DrawingCanvas.tsx`, `LayerCanvas.tsx`, `useDrawing.ts`, `useHistory.ts`, `utils/floodFill.ts`, large parts of `canvasStore.ts` — easy to break imports; remove only in dedicated cleanup tasks.
+- **`canvasStore` raster APIs** — `layerCanvases`, PNG snapshot history — still in store but not used by the vector canvas path.
 - `Toolbar.tsx` `handleClear` — still targets raster `layerCanvases`; ineffective on vector canvas.
 
 ## Git workflow (main / dev)

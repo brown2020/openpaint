@@ -99,6 +99,7 @@ export function useProjects() {
       } catch (error) {
         console.error("Failed to create project:", error);
         setError("Failed to create project. Please try again.");
+        setLoading(false);
         return null;
       }
     },
@@ -117,6 +118,7 @@ export function useProjects() {
         const project = await getProject(projectId);
         if (!project || project.userId !== user.uid) {
           setError("Project not found or access denied.");
+          setSyncStatus("error");
           setLoading(false);
           return false;
         }
