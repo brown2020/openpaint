@@ -6,6 +6,7 @@ import { useDocumentStore } from "@/store/documentStore";
 import { useSelectionTool } from "@/hooks/useSelectionTool";
 import { useShapeTool } from "@/hooks/useShapeTool";
 import { useFreehandTool } from "@/hooks/useFreehandTool";
+import { usePenTool } from "@/hooks/usePenTool";
 import { hitTestLayers } from "@/lib/vector/hitTest";
 import { renderScene, renderSelectionOverlay } from "@/lib/vector/renderer";
 import {
@@ -52,6 +53,7 @@ export function VectorCanvas() {
   const selectionTool = useSelectionTool();
   const shapeTool = useShapeTool();
   const freehandTool = useFreehandTool();
+  const penTool = usePenTool();
 
   const hiddenObjectIds = useMemo(() => {
     if (textSession?.mode === "edit") {
@@ -107,6 +109,7 @@ export function VectorCanvas() {
 
     shapeTool.renderPreview(ctx);
     freehandTool.renderPreview(ctx);
+    penTool.renderPreview(ctx, currentPointRef.current);
 
     const marquee = selectionTool.getMarqueeRect(currentPointRef.current);
     if (marquee) {
@@ -119,7 +122,7 @@ export function VectorCanvas() {
       ctx.fillRect(marquee.x, marquee.y, marquee.width, marquee.height);
       ctx.restore();
     }
-  }, [layers, selectedObjectIds, canvasSize, shapeTool, freehandTool, selectionTool]);
+  }, [layers, selectedObjectIds, canvasSize, shapeTool, freehandTool, penTool, selectionTool]);
 
   useEffect(() => {
     renderOverlay();
@@ -338,6 +341,8 @@ export function VectorCanvas() {
         shapeTool.onPointerDown(point, activeTool);
       } else if (activeTool === "brush") {
         freehandTool.onPointerDown(point);
+      } else if (activeTool === "pen") {
+        penTool.onPointerDown(point);
       } else if (activeTool === "eraser" || activeTool === "fill" || activeTool === "eyedropper") {
         handleUtilityClick(point);
       } else if (activeTool === "text") {
@@ -350,6 +355,7 @@ export function VectorCanvas() {
       selectionTool,
       shapeTool,
       freehandTool,
+      penTool,
       handleUtilityClick,
       startNewTextEdit,
     ],
@@ -371,6 +377,8 @@ export function VectorCanvas() {
         shapeTool.onPointerMove(point, e.shiftKey, e.altKey);
       } else if (activeTool === "brush") {
         freehandTool.onPointerMove(point);
+      } else if (activeTool === "pen") {
+        penTool.onPointerMove(point);
       }
 
       renderOverlay();
@@ -382,6 +390,7 @@ export function VectorCanvas() {
       selectionTool,
       shapeTool,
       freehandTool,
+      penTool,
       renderOverlay,
       textSession,
     ],
@@ -406,11 +415,13 @@ export function VectorCanvas() {
         shapeTool.onPointerUp(point);
       } else if (activeTool === "brush") {
         freehandTool.onPointerUp();
+      } else if (activeTool === "pen") {
+        penTool.onPointerUp(point);
       }
 
       renderOverlay();
     },
-    [activeTool, getCanvasPoint, selectionTool, shapeTool, freehandTool, renderOverlay, textSession],
+    [activeTool, getCanvasPoint, selectionTool, shapeTool, freehandTool, penTool, renderOverlay, textSession],
   );
 
   const handleDoubleClick = useCallback(
@@ -447,6 +458,7 @@ export function VectorCanvas() {
       case "polygon":
         return "crosshair";
       case "brush":
+      case "pen":
         return "crosshair";
       case "eraser":
         return "pointer";
@@ -486,6 +498,29 @@ export function VectorCanvas() {
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
   }, [textSession, commitTextEdit]);
+
+  // Pen tool: Enter finishes, Escape cancels in-progress path
+  useEffect(() => {
+    if (activeTool !== "pen") {
+      penTool.cancelPath();
+      return;
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== "Escape") return;
+      if (!penTool.isDrawing()) return;
+      e.preventDefault();
+      if (e.key === "Escape") {
+        penTool.cancelPath();
+      } else {
+        penTool.finishPath(false);
+      }
+      renderOverlay();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeTool, penTool, renderOverlay]);
 
   return (
     <div

@@ -66,7 +66,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Zoom/pan | **Working** | Ctrl/meta + wheel; middle-mouse pan |
 | PNG export | **Working** | White background composite |
 | SVG export | **Working** | Solid + gradient fills; per-corner rounded rects; groups |
-| Pen tool (P) | **Not implemented** | No tool button |
+| Pen tool (P) | **Working** | Corner + smooth points; Enter/Escape; close on start |
 | Direct selection (A) | **Not implemented** | |
 | Groups UI | **Not implemented** | Model + renderer support `group` |
 | Boolean/pathfinder | **Not implemented** | |
@@ -243,18 +243,20 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 ---
 
 
-### Milestone 6 — Pen tool (basic)
+### Milestone 6 — Pen tool (basic) ✅
 
 **User value:** Users can draw custom paths like every vector app.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- Tool P in toolbar and shortcuts.
-- Click adds corner points; click-drag adds smooth points with handles; Enter/Escape finishes open path; click start closes path.
-- Live preview segment to cursor.
-- Result is editable `path` object in scene graph.
+- [x] Tool P in toolbar and shortcuts.
+- [x] Click adds corner points; click-drag adds smooth points with handles; Enter/Escape finishes open path; click start closes path.
+- [x] Live preview segment to cursor.
+- [x] Result is editable `path` object in scene graph.
 
-**Implementation intent:** New `usePenTool` hook + overlay preview; pathdiv not required for v1.
+**Implementation note:** `usePenTool` + `penPath.ts` segment builder; overlay preview with close-radius hint; commits `path` object and switches to selection.
 
 ---
 

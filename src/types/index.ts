@@ -5,6 +5,7 @@ export type ToolType =
   | "rectangle"
   | "ellipse"
   | "polygon"
+  | "pen"
   | "fill"
   | "eyedropper"
   | "text"

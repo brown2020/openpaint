@@ -85,7 +85,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Firebase auth | Google, email/password, email link |
 | Cloud projects | Create, list, open, save, delete, rename, thumbnails |
 | Auto-save hook | Present — **debounced save likely broken** (`markDirty` never called; see cautions) |
-| Pen tool | **Not implemented** |
+| Pen tool | Working — P shortcut; corner/smooth anchors, close path, Enter/Escape |
 | Direct selection (anchor edit) | **Not implemented** |
 | SVG export | Working — scene graph to `.svg` (solid/gradient fill, per-corner radii) |
 | Groups (Ctrl+G UI) | **Not implemented** (renderer supports `group`) |

@@ -28,6 +28,7 @@ export function BrushSettings() {
     "line",
     "polygon",
     "brush",
+    "pen",
   ].includes(activeTool);
 
   return (
@@ -96,6 +97,15 @@ export function BrushSettings() {
           Click to select. Drag to move. Shift+click for multi-select.
         </p>
       )}
+      {activeTool === "pen" && (
+        <>
+          <p className="text-xs text-gray-400">
+            Click for corner points. Click-drag for smooth curves. Click the
+            start point to close. Enter to finish, Escape to cancel.
+          </p>
+        </>
+      )}
+
       {activeTool === "eraser" && (
         <p className="text-xs text-gray-400">Click an object to delete it.</p>
       )}
@@ -130,6 +140,7 @@ function toolLabel(tool: string): string {
     line: "Line",
     polygon: "Polygon",
     brush: "Brush",
+    pen: "Pen",
     eraser: "Eraser",
     fill: "Fill Bucket",
     eyedropper: "Eyedropper",
