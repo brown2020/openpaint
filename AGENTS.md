@@ -91,6 +91,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | Groups (Ctrl+G UI) | **Not implemented** (renderer supports `group`) |
 | Gradient fills (UI) | **Not implemented** (types + renderer support gradients) |
 | On-canvas rotation handle | **Not implemented** (rotation via Properties panel only) |
+| Legacy raster import | Working — PNG-only cloud projects import as `image` objects per layer |
 | Legacy raster state in `canvasStore` | **Partial** — layer canvas maps/history unused by `VectorCanvas`; trim in a dedicated pass |
 
 ## Important commands

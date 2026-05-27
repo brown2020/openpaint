@@ -77,7 +77,7 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Auto-save | **Working** | Debounced save when signed in with open project |
 | Guest-first entry | **Working** | No blocking auth modal; dismissable cloud banner |
 | Local project JSON | **Working** | v2 `localStorage` / file open for `version` 2.x |
-| Legacy raster load | **Gap** | Opening old PNG-only layer projects may show empty vector layers unless `vectorLayers` populated |
+| Legacy raster load | **Working** | Imports Storage PNGs as locked `image` objects when `vectorLayers` empty |
 | Auth modal on load | **Strict** | If Firebase configured and signed out, modal blocks UI (not closable) |
 | Tests | **None** | No automated test runner configured |
 | Dark mode | **Not implemented** | |
@@ -260,18 +260,18 @@ Ordered by **user value** and **dependency**. Each item is sized for one focused
 
 ---
 
-### Milestone 7 — Open legacy raster projects
+### Milestone 7 — Open legacy raster projects ✅
 
 **User value:** Existing users do not lose work when opening old cloud saves.
 
+**Status:** Complete.
+
 **Acceptance criteria:**
 
-- On load, if `vectorLayers` empty but Storage layer PNGs exist, import each PNG as a `rectangle` or locked `path`/image placeholder layer (documented approach: one image object per layer) **or** rasterize into a single locked background object.
-- Thumbnail and save round-trip still work.
+- [x] On load, if `vectorLayers` empty but Storage layer PNGs exist, import each PNG as a `rectangle` or locked `path`/image placeholder layer (documented approach: one image object per layer) **or** rasterize into a single locked background object.
+- [x] Thumbnail and save round-trip still work.
 
-**Implementation intent:** In `loadProject`, fetch Storage URLs and build objects; prefer one `path` with embedded image draw or explicit `image` type if added.
-
-*Note: Adding an `image` object type is acceptable if smaller than full raster engine revival.*
+**Implementation note:** `image` object type + `fetchLegacyRasterLayers()` in `loadProject`; one locked full-canvas image per layer from Storage; save still writes `vectorLayers` + PNG composites.
 
 ---
 

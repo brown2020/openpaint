@@ -8,6 +8,7 @@ const TYPE_LABELS: Record<VectorObject["type"], string> = {
   path: "Path",
   text: "Text",
   group: "Group",
+  image: "Image",
 };
 
 const MAX_NAME_LENGTH = 24;

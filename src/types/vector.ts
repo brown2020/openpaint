@@ -121,7 +121,8 @@ export type VectorObjectType =
   | "line"
   | "polygon"
   | "text"
-  | "group";
+  | "group"
+  | "image";
 
 /** Common properties shared by all vector objects */
 export interface BaseVectorObject {
@@ -183,6 +184,15 @@ export interface GroupObject extends BaseVectorObject {
   children: VectorObject[];
 }
 
+/** Raster layer imported from legacy Storage PNGs */
+export interface ImageObject extends BaseVectorObject {
+  type: "image";
+  width: number;
+  height: number;
+  /** Image URL (Firebase Storage download URL or data URL) */
+  src: string;
+}
+
 export type VectorObject =
   | RectangleObject
   | EllipseObject
@@ -190,7 +200,8 @@ export type VectorObject =
   | LineObject
   | PolygonObject
   | TextObject
-  | GroupObject;
+  | GroupObject
+  | ImageObject;
 
 // ---- Layer ----
 

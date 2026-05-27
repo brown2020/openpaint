@@ -8,7 +8,11 @@ import { useShapeTool } from "@/hooks/useShapeTool";
 import { useFreehandTool } from "@/hooks/useFreehandTool";
 import { usePenTool } from "@/hooks/usePenTool";
 import { hitTestLayers } from "@/lib/vector/hitTest";
-import { renderScene, renderSelectionOverlay } from "@/lib/vector/renderer";
+import {
+  OPENPAINT_IMAGE_LOADED,
+  renderScene,
+  renderSelectionOverlay,
+} from "@/lib/vector/renderer";
 import {
   buildTextObject,
   normalizeTextAlign,
@@ -89,6 +93,12 @@ export function VectorCanvas() {
 
   useEffect(() => {
     renderMain();
+  }, [renderMain]);
+
+  useEffect(() => {
+    const onImageLoaded = () => renderMain();
+    window.addEventListener(OPENPAINT_IMAGE_LOADED, onImageLoaded);
+    return () => window.removeEventListener(OPENPAINT_IMAGE_LOADED, onImageLoaded);
   }, [renderMain]);
 
   const renderOverlay = useCallback(() => {

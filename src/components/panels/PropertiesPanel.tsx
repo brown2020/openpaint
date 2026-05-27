@@ -151,7 +151,9 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
           label="W"
           value={Math.round(bounds.width)}
           onChange={(v) => {
-            if (obj.type === "rectangle") setNumericField("width", v);
+            if (obj.type === "rectangle" || obj.type === "image") {
+              setNumericField("width", v);
+            }
             if (obj.type === "ellipse") setNumericField("radiusX", v / 2);
           }}
           min={1}
@@ -160,7 +162,9 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
           label="H"
           value={Math.round(bounds.height)}
           onChange={(v) => {
-            if (obj.type === "rectangle") setNumericField("height", v);
+            if (obj.type === "rectangle" || obj.type === "image") {
+              setNumericField("height", v);
+            }
             if (obj.type === "ellipse") setNumericField("radiusY", v / 2);
           }}
           min={1}
