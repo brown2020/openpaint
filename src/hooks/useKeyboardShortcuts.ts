@@ -4,6 +4,7 @@ import { useEffect, useCallback, useRef } from "react";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useDocumentStore } from "@/store/documentStore";
 import type { ToolType } from "@/types";
+import type { HistoryOperation, VectorObject } from "@/types/vector";
 
 interface KeyboardShortcutsOptions {
   onUndo?: () => void;
@@ -135,19 +136,42 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         const docStore = useDocumentStore.getState();
         const selected = docStore.selectedObjectIds;
         if (selected.length > 0) {
-          const ops = [];
+          const layerOrder = new Map(
+            docStore.layers.map((layer, index) => [layer.id, index]),
+          );
+          const targets: Array<{
+            layerId: string;
+            object: VectorObject;
+            index: number;
+          }> = [];
+
           for (const id of selected) {
             const obj = docStore.getObject(id);
             const layerId = docStore.getObjectLayerId(id);
             if (obj && layerId) {
               const layer = docStore.layers.find((l) => l.id === layerId);
               const index = layer?.objects.findIndex((o) => o.id === id) ?? 0;
-              ops.push({ type: "remove-object" as const, layerId, object: obj, index });
+              targets.push({ layerId, object: obj, index });
             }
           }
-          // Remove objects (in reverse order to preserve indices)
-          for (const id of [...selected].reverse()) {
-            docStore.removeObject(id);
+
+          // Remove from the top of each layer downward so stored indices stay valid.
+          targets.sort((a, b) => {
+            const layerDelta =
+              (layerOrder.get(b.layerId) ?? 0) - (layerOrder.get(a.layerId) ?? 0);
+            if (layerDelta !== 0) return layerDelta;
+            return b.index - a.index;
+          });
+
+          const ops: HistoryOperation[] = targets.map((target) => ({
+            type: "remove-object",
+            layerId: target.layerId,
+            object: target.object,
+            index: target.index,
+          }));
+
+          for (const target of targets) {
+            docStore.removeObject(target.object.id);
           }
           if (ops.length > 0) docStore.pushHistory("Delete objects", ops);
         } else if (shift) {
@@ -316,4 +340,3 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     toolShortcuts: TOOL_SHORTCUTS,
   };
 }
-
