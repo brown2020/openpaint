@@ -378,12 +378,14 @@ export const useDocumentStore = create<DocumentState>((set, get) => {
       const layer = layers.find((l) => l.id === activeLayerId);
       if (!layer || layer.objects.length === 0) return;
 
-      const operations: HistoryOperation[] = layer.objects.map((object, index) => ({
-        type: "remove-object" as const,
-        layerId: activeLayerId,
-        object,
-        index,
-      }));
+      const operations: HistoryOperation[] = layer.objects
+        .map((object, index) => ({
+          type: "remove-object" as const,
+          layerId: activeLayerId,
+          object,
+          index,
+        }))
+        .reverse();
 
       set((state) => ({
         layers: state.layers.map((l) =>
