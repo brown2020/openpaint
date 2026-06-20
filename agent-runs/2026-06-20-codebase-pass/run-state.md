@@ -11,15 +11,15 @@
 
 ## Current State
 
-- Phase: Baseline Validation
-- Task: T-003
+- Phase: Findings Backlog
+- Task: T-004
 - Status: In progress
 - Last command: CI=true npm run lint
 - Last result: passed
-- Last pushed commit: 184907b
-- Branch sync: dev matches origin/dev after preflight checkpoint
-- Working tree: dirty with owned baseline report updates
-- Next action: inspect diff, commit and push baseline report checkpoint
+- Last pushed commit: 0012c73
+- Branch sync: dev matches origin/dev after baseline checkpoint
+- Working tree: dirty with owned findings report updates
+- Next action: inspect diff, commit and push findings report checkpoint
 
 ## Dirty File Classification
 
