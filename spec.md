@@ -131,7 +131,7 @@ flowchart TD
 1. **Cloud save requires sign-in** — Guests save locally; cloud projects require authentication (by design).
 2. **Text re-edit while selected** — Properties panel edits do not open inline overlay (use double-click).
 3. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
-4. **Dead raster code** — `DrawingCanvas`, `useDrawing`, `useHistory`, `floodFill` increase confusion and bundle surface.
+4. **Legacy raster state** — `canvasStore` still exposes raster-era layer canvas/history APIs that no longer drive `VectorCanvas`.
 5. **Save cost** — Full layer PNG re-upload every save.
 6. **Legacy projects** — Pre-vector saves without `vectorLayers` may load empty layers (metadata only).
 7. **Limited automated tests** — Vitest exists for focused helpers and flows, but canvas interaction coverage remains thin.
