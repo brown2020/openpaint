@@ -84,7 +84,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 | SVG export | Working — `exportDocumentToSvg` (toolbar + Ctrl+Shift+E) |
 | Firebase auth | Google, email/password, email link |
 | Cloud projects | Create, list, open, save, delete, rename, thumbnails |
-| Auto-save hook | Present — **debounced save likely broken** (`markDirty` never called; see cautions) |
+| Auto-save hook | Working — `markDocumentDirty()` marks open cloud projects dirty; `useAutoSave` debounces saves |
 | Pen tool | Working — P shortcut; corner/smooth anchors, close path, Enter/Escape |
 | Direct selection (anchor edit) | **Not implemented** |
 | SVG export | Working — scene graph to `.svg` (solid/gradient fill, per-corner radii) |
@@ -148,7 +148,7 @@ TypeScript is also checked during `next build`; `typecheck` catches issues faste
 ## Route protection guidance
 
 - **No Next.js routes beyond `/`** — no `/dashboard`, no protected segments.
-- **Auth gating is UI-level:** `page.tsx` shows non-closable `AuthModal` when Firebase is configured and user is signed out; cloud project list opens when signed in without a current project.
+- **Auth gating is UI-level:** `page.tsx` lets unsigned users draw locally, shows a dismissable cloud sign-in banner when Firebase is configured, and opens a closable `AuthModal` only when the user requests cloud features. Cloud project list opens when signed in without a current project.
 - **Local mode:** works without auth; save goes to `localStorage` / JSON download path.
 - Firestore/Storage rules require `request.auth.uid == resource.data.userId` for projects.
 
@@ -165,13 +165,13 @@ TypeScript is also checked during `next build`; `typecheck` catches issues faste
 
 **When editing tools/view:** prefer `canvasStore`.
 
-**Cloud dirty flag:** call `useProjectStore.getState().markDirty()` after document mutations if auto-save should run (currently missing — fix is a valid small task).
+**Cloud dirty flag:** document mutations should call `markDocumentDirty()` (from `src/lib/sync/documentDirty.ts`) or otherwise call `useProjectStore.getState().markDirty()` when an open cloud project needs auto-save.
 
 ## Testing expectations
 
-- No Jest/Vitest/Playwright setup in repo.
-- Validation is lint + build only unless the task adds tests.
-- Do not add trivial test scaffolding without user request.
+- Vitest is configured (`vitest.config.ts`) for `src/**/*.test.ts`; component tests under `src/components/**/*.test.ts` run in jsdom.
+- Prefer focused unit tests for pure vector, sync, import/export, and small UI helper behavior when a change has meaningful regression risk.
+- Do not add broad or trivial test scaffolding without user request.
 
 ## Files and systems requiring extra caution
 
@@ -181,7 +181,7 @@ TypeScript is also checked during `next build`; `typecheck` catches issues faste
 - `src/lib/vector/renderer.ts` — all visible output; regressions are user-visible.
 - `src/hooks/useProjects.ts` — save/load format (`vectorLayers` + Storage PNGs).
 - **`canvasStore` raster APIs** — `layerCanvases`, PNG snapshot history — still in store but not used by the vector canvas path.
-- `Toolbar.tsx` `handleClear` — still targets raster `layerCanvases`; ineffective on vector canvas.
+- `Toolbar.tsx` `handleClear` — clears the active vector layer through `documentStore.clearActiveLayer()` and records undo history.
 
 ## Git workflow (main / dev)
 

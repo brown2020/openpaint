@@ -78,8 +78,8 @@ OpenPaint is a **single-route Next.js SPA** that edits a **vector document** (la
 | Guest-first entry | **Working** | No blocking auth modal; dismissable cloud banner |
 | Local project JSON | **Working** | v2 `localStorage` / file open for `version` 2.x |
 | Legacy raster load | **Working** | Imports Storage PNGs as locked `image` objects when `vectorLayers` empty |
-| Auth modal on load | **Strict** | If Firebase configured and signed out, modal blocks UI (not closable) |
-| Tests | **None** | No automated test runner configured |
+| Auth modal on load | **On demand** | Unsigned users can draw locally; a dismissable banner and toolbar/cloud actions open a closable auth modal |
+| Tests | **Partial** | Vitest unit tests cover vector helpers, sync dirty marking, auth route helper, project loading, and selected UI helpers |
 | Dark mode | **Not implemented** | |
 | Mobile layout | **Not implemented** | Desktop-oriented sidebars |
 
@@ -90,12 +90,13 @@ flowchart TD
   A[Load /] --> B{Firebase configured?}
   B -->|No| C[Local canvas only]
   B -->|Yes| D{Signed in?}
-  D -->|No| E[Auth modal blocks]
+  D -->|No| E[Local canvas plus cloud sign-in banner]
   D -->|Yes| F{Current project?}
   F -->|No| G[Project list modal]
   F -->|Yes| H[Editor]
   G --> H
   C --> H
+  E --> H
   H --> I[Edit vector doc]
   I --> J{Save}
   J -->|Signed in| K[Firestore + Storage PNGs + vectorLayers JSON]
@@ -128,13 +129,12 @@ flowchart TD
 ### Known limitations
 
 1. **Cloud save requires sign-in** — Guests save locally; cloud projects require authentication (by design).
-3. **Text re-edit while selected** — Properties panel edits do not open inline overlay (use double-click).
-4. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
-5. **Toolbar Clear** — Clears legacy raster canvas, not vector document.
-6. **Dead raster code** — `DrawingCanvas`, `useDrawing`, `useHistory`, `floodFill` increase confusion and bundle surface.
-7. **Save cost** — Full layer PNG re-upload every save.
-8. **Legacy projects** — Pre-vector saves without `vectorLayers` may load empty layers (metadata only).
-9. **No automated tests** — Regressions caught manually or via build only.
+2. **Text re-edit while selected** — Properties panel edits do not open inline overlay (use double-click).
+3. **Eraser / fill semantics** — Object-level, not pixel/raster behavior users may expect from paint apps.
+4. **Dead raster code** — `DrawingCanvas`, `useDrawing`, `useHistory`, `floodFill` increase confusion and bundle surface.
+5. **Save cost** — Full layer PNG re-upload every save.
+6. **Legacy projects** — Pre-vector saves without `vectorLayers` may load empty layers (metadata only).
+7. **Limited automated tests** — Vitest exists for focused helpers and flows, but canvas interaction coverage remains thin.
 
 ---
 
