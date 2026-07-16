@@ -16,8 +16,8 @@ All phase reports, task queue, full diff from `41487bc`, clean `npm ci`, npm aud
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending stabilization checkpoint
-- Pushed to: pending
+- Commit: `2caddc5`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `9605569` before report edits
 
 ## Loop
@@ -99,10 +99,10 @@ All stabilization commands passed except `npm outdated`'s expected exit 1 for th
 
 - Status inspected: clean/synced before stabilization report edits
 - Diff checked: full range `git diff --check` passed
-- Files staged: pending stabilization report/state/queue only
+- Files staged: stabilization report, run state, and task queue
 - Dry-run push: passed before report edits; repeat before push
-- Push: pending
-- Post-push sync: pending
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 

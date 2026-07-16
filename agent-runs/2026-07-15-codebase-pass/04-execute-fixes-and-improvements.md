@@ -16,8 +16,8 @@ Findings F-001/F-002/F-003; ESLint/Git peer evidence; `projectStore`, `useProjec
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending execution checkpoint
-- Pushed to: pending
+- Commit: `611b98b`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `6509123` before task edits
 
 ## Loop
@@ -90,10 +90,10 @@ Focused dirty-state test passed (3 tests). Full lint passed with restored React 
 
 - Status inspected: only six task-owned source/config/test files plus this run report/state/queue
 - Diff checked: source diff reviewed; `git diff --check` passed
-- Files staged: pending exact-path staging
-- Dry-run push: pending
-- Push: pending
-- Post-push sync: pending
+- Files staged: nine task-owned source/config/test/report files
+- Dry-run push: Passed
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 

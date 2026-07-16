@@ -16,8 +16,8 @@ Baseline report; `package.json`; npm registry metadata and peer requirements; `n
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending findings checkpoint
-- Pushed to: pending
+- Commit: `6509123`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `5c4b819` before report edits
 
 ## Loop
@@ -93,11 +93,11 @@ Every executable finding is backed by source/registry evidence and has a local g
 ## Commit-Push Checkpoint
 
 - Status inspected: clean before report edits
-- Diff checked: pending report checkpoint
-- Files staged: pending exact report/state/queue staging
-- Dry-run push: pending
-- Push: pending
-- Post-push sync: pending
+- Diff checked: Passed
+- Files staged: findings report, run state, and task queue
+- Dry-run push: Passed
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 

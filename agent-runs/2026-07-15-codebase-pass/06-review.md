@@ -16,8 +16,8 @@ All phase reports; `git diff`/log/status; package and audit diagnostics; source 
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending review checkpoint
-- Pushed to: pending
+- Commit: `9605569`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `7cdc62f` before review fixes
 
 ## Loop
@@ -91,10 +91,10 @@ Focused sync tests pass (4 tests). Full lint, typecheck, 12 test files / 38 test
 
 - Status inspected: four review-owned source/test files plus review report/state/queue
 - Diff checked: full range and review fixes inspected; `git diff --check` passed
-- Files staged: pending exact-path staging
-- Dry-run push: pending
-- Push: pending
-- Post-push sync: pending
+- Files staged: seven review-owned source/test/report files
+- Dry-run push: Passed
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 
