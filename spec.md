@@ -2,7 +2,7 @@
 
 Authoritative product and roadmap document. For agent implementation rules, see `AGENTS.md`.
 
-**Last aligned with codebase:** `dev` @ vector architecture (scene graph, `documentStore`, `VectorCanvas`). Older raster-only descriptions are obsolete.
+**Last aligned with codebase:** 2026-07-15 on `dev` @ vector architecture (scene graph, `documentStore`, `VectorCanvas`). Older raster-only descriptions are obsolete.
 
 ---
 
