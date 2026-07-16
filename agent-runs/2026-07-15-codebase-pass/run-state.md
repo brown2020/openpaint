@@ -11,23 +11,25 @@
 
 ## Current State
 
-- Phase: Findings Backlog
-- Task: T-003
-- Status: Findings complete; report checkpoint pending
-- Last command: `npm audit fix --dry-run --json`
-- Last result: Executable F-001/F-002/F-003 and package F-004/F-005 queued; F-006/F-007 deferred with evidence
-- Last pushed commit: `5c4b819`
+- Phase: Execute Fixes and Improvements
+- Task: T-004
+- Status: Source fixes complete; checkpoint pending
+- Last command: `CI=true npm run build`
+- Last result: lint, typecheck, 12 files/37 tests, and Next production build passed
+- Last pushed commit: `6509123`
 - Branch sync: matched `origin/dev` before this phase's report edits
-- Working tree: findings report/state/queue edits only
-- Next action: commit and push findings checkpoint, then execute T-004
+- Working tree: T-004 source/config/test/report/state/queue files only
+- Next action: commit and push execution checkpoint, then start T-005 packages
 
 ## Dirty File Classification
 
 | Path | Classification | Owner/Reason |
 | --- | --- | --- |
-| `agent-runs/2026-07-15-codebase-pass/03-findings-backlog.md` | In-scope report | T-003 evidence and scorecard |
-| `agent-runs/2026-07-15-codebase-pass/run-state.md` | In-scope report | T-003 resume ledger |
-| `agent-runs/2026-07-15-codebase-pass/task-queue.md` | In-scope report | T-003 task status/ownership |
+| `eslint.config.mjs` | In-scope config | F-001 restore React lint rules |
+| `src/store/projectStore.ts`, `src/hooks/useProjects.ts`, `src/hooks/useAutoSave.ts` | In-scope source | F-002 save revision/race fix |
+| `src/hooks/useKeyboardShortcuts.ts` | In-scope source | F-003 nudge history/timer fix |
+| `src/lib/sync/documentDirty.test.ts` | In-scope test | F-002 regression coverage |
+| `agent-runs/2026-07-15-codebase-pass/{04-execute-fixes-and-improvements.md,run-state.md,task-queue.md}` | In-scope reports | T-004 evidence and resume state |
 
 ## Blockers
 

@@ -69,6 +69,44 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
   const nudgeBeforeRef = useRef<Map<string, { x: number; y: number }> | null>(null);
   const nudgeTimerRef = useRef<number | null>(null);
 
+  const commitPendingNudge = useCallback(() => {
+    if (nudgeTimerRef.current !== null) {
+      clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = null;
+    }
+
+    const before = nudgeBeforeRef.current;
+    nudgeBeforeRef.current = null;
+    if (!before) return;
+
+    const docStore = useDocumentStore.getState();
+    const operations: HistoryOperation[] = [];
+
+    for (const [id, originalPosition] of before) {
+      const object = docStore.getObject(id);
+      const layerId = docStore.getObjectLayerId(id);
+      if (!object || !layerId) continue;
+
+      operations.push({
+        type: "modify-object",
+        objectId: id,
+        layerId,
+        before: {
+          transform: {
+            ...object.transform,
+            x: originalPosition.x,
+            y: originalPosition.y,
+          },
+        },
+        after: { transform: { ...object.transform } },
+      });
+    }
+
+    if (operations.length > 0) {
+      docStore.pushHistory("Nudge objects", operations);
+    }
+  }, []);
+
   /**
    * Handle keyboard shortcuts
    */
@@ -186,6 +224,15 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
         if (docStore.selectedObjectIds.length > 0) {
           e.preventDefault();
 
+          const pendingIds = nudgeBeforeRef.current;
+          const selectionChanged =
+            pendingIds !== null &&
+            (pendingIds.size !== docStore.selectedObjectIds.length ||
+              docStore.selectedObjectIds.some((id) => !pendingIds.has(id)));
+          if (selectionChanged) {
+            commitPendingNudge();
+          }
+
           // Capture "before" transforms on first nudge of a sequence
           if (nudgeBeforeRef.current === null) {
             nudgeBeforeRef.current = new Map();
@@ -209,30 +256,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
 
           // Debounce: commit history after 500ms pause
           if (nudgeTimerRef.current !== null) clearTimeout(nudgeTimerRef.current);
-          nudgeTimerRef.current = window.setTimeout(() => {
-            const ds = useDocumentStore.getState();
-            const before = nudgeBeforeRef.current;
-            if (before) {
-              const ops = [];
-              for (const id of ds.selectedObjectIds) {
-                const obj = ds.getObject(id);
-                const b = before.get(id);
-                const layerId = ds.getObjectLayerId(id);
-                if (obj && b && layerId) {
-                  ops.push({
-                    type: "modify-object" as const,
-                    objectId: id,
-                    layerId,
-                    before: { transform: { ...obj.transform, x: b.x, y: b.y } },
-                    after: { transform: { ...obj.transform } },
-                  });
-                }
-              }
-              if (ops.length > 0) ds.pushHistory("Nudge objects", ops);
-            }
-            nudgeBeforeRef.current = null;
-            nudgeTimerRef.current = null;
-          }, 500);
+          nudgeTimerRef.current = window.setTimeout(commitPendingNudge, 500);
         }
         return;
       }
@@ -323,6 +347,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       zoomIn,
       zoomOut,
       resetZoom,
+      commitPendingNudge,
     ]
   );
 
@@ -332,8 +357,9 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     window.addEventListener("keydown", handleKeyDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      commitPendingNudge();
     };
-  }, [enabled, handleKeyDown]);
+  }, [enabled, handleKeyDown, commitPendingNudge]);
 
   return {
     // Expose the tool shortcuts for UI hints
