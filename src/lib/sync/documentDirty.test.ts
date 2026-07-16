@@ -48,4 +48,22 @@ describe("markDocumentDirty", () => {
     useProjectStore.getState().clearDirty(2);
     expect(useProjectStore.getState().isDirty).toBe(false);
   });
+
+  it("preserves unsaved edits when the current project is renamed", () => {
+    useProjectStore.setState({
+      currentProjectId: "project-1",
+      currentProjectName: "Before",
+      isDirty: true,
+      dirtyRevision: 4,
+    });
+
+    useProjectStore
+      .getState()
+      .updateProjectInList("project-1", { name: "After" });
+
+    const state = useProjectStore.getState();
+    expect(state.currentProjectName).toBe("After");
+    expect(state.isDirty).toBe(true);
+    expect(state.dirtyRevision).toBe(4);
+  });
 });

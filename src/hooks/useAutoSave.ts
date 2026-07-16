@@ -29,6 +29,8 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
   const mountedRef = useRef(false);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
 
   useEffect(() => {
     mountedRef.current = true;
@@ -54,7 +56,7 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
     if (
       saved &&
       mountedRef.current &&
-      enabled &&
+      enabledRef.current &&
       useAuthStore.getState().user &&
       latestProject.currentProjectId === currentProjectId &&
       latestProject.isDirty
@@ -64,7 +66,7 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
       }
       saveTimeoutRef.current = setTimeout(saveDirtyDocument, debounceDelay);
     }
-  }, [currentProjectId, debounceDelay, enabled, saveProject]);
+  }, [currentProjectId, debounceDelay, saveProject]);
 
   // Debounced save when dirty flag changes
   useEffect(() => {
