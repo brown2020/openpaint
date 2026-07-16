@@ -11,23 +11,23 @@
 
 ## Current State
 
-- Phase: Preflight and Repo Docs
-- Task: T-001
-- Status: Preflight complete; checkpoint pending
-- Last command: `CI=true npm run lint`
-- Last result: Passed with no warnings
-- Last pushed commit: `41487bc`
+- Phase: Baseline Validation
+- Task: T-002
+- Status: Baseline complete; report checkpoint pending
+- Last command: `npm ls --depth=0`
+- Last result: Canonical gates passed; outdated and audit findings classified; direct tree resolved
+- Last pushed commit: `8923e4e`
 - Branch sync: matched `origin/dev` before this phase's report edits
-- Working tree: safe in-scope docs and run-report files only; `git diff --check` passed
-- Next action: commit and push the preflight checkpoint, then start T-002 baseline validation
+- Working tree: baseline report/state/queue edits only
+- Next action: commit and push the baseline checkpoint, then start T-003 findings
 
 ## Dirty File Classification
 
 | Path | Classification | Owner/Reason |
 | --- | --- | --- |
-| `AGENTS.md` | Safe-to-commit | T-001 dependency maintenance guidance |
-| `spec.md` | Safe-to-commit | T-001 current-state alignment date |
-| `agent-runs/2026-07-15-codebase-pass/*` | Safe-to-commit | Current workflow run ledger and reports |
+| `agent-runs/2026-07-15-codebase-pass/02-baseline-validation.md` | In-scope report | T-002 baseline evidence |
+| `agent-runs/2026-07-15-codebase-pass/run-state.md` | In-scope report | T-002 resume ledger |
+| `agent-runs/2026-07-15-codebase-pass/task-queue.md` | In-scope report | T-002 task status |
 
 ## Blockers
 
