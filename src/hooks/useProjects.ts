@@ -350,10 +350,6 @@ export function useProjects() {
         await renameProjectInFirestore(projectId, newName);
         updateProjectInList(projectId, { name: newName });
 
-        if (currentProjectId === projectId) {
-          setCurrentProject(projectId, newName);
-        }
-
         return true;
       } catch (error) {
         console.error("Failed to rename project:", error);
@@ -361,7 +357,7 @@ export function useProjects() {
         return false;
       }
     },
-    [user, currentProjectId, setError, updateProjectInList, setCurrentProject]
+    [user, setError, updateProjectInList]
   );
 
   return {

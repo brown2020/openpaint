@@ -125,6 +125,17 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       const key = e.key.toLowerCase();
       const ctrl = e.ctrlKey || e.metaKey;
       const shift = e.shiftKey;
+      const isNudgeKey = [
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+      ].includes(key);
+
+      // Finish a pending nudge before another shortcut changes document state.
+      if (!isNudgeKey) {
+        commitPendingNudge();
+      }
 
       // Undo: Ctrl+Z
       if (ctrl && !shift && key === "z") {
@@ -219,7 +230,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
       }
 
       // Arrow keys: nudge selected objects
-      if (["arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+      if (isNudgeKey) {
         const docStore = useDocumentStore.getState();
         if (docStore.selectedObjectIds.length > 0) {
           e.preventDefault();
@@ -355,8 +366,10 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
     if (!enabled) return;
 
     window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("pointerdown", commitPendingNudge, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("pointerdown", commitPendingNudge, true);
       commitPendingNudge();
     };
   }, [enabled, handleKeyDown, commitPendingNudge]);

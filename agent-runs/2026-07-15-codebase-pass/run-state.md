@@ -11,22 +11,23 @@
 
 ## Current State
 
-- Phase: Package and Dead-Code Cleanup
-- Task: T-005
-- Status: Package cleanup complete; checkpoint pending
-- Last command: `CI=true npm run build` after clean `npm ci`
-- Last result: zero audit vulnerabilities/install warnings; clean dependency tree; lint, typecheck, 37 tests, and build passed
-- Last pushed commit: `611b98b`
+- Phase: Review
+- Task: T-006
+- Status: Review fixes complete; checkpoint pending
+- Last command: `CI=true npm run build`
+- Last result: Judge PASS after fixes; lint, typecheck, 12 files/38 tests, and build pass
+- Last pushed commit: `7cdc62f`
 - Branch sync: matched `origin/dev` before this phase's report edits
-- Working tree: package manifest/lockfile and T-005 report/state/queue only
-- Next action: commit and push package checkpoint, then start T-006 review/stabilization
+- Working tree: review-owned source/test/report/state/queue only
+- Next action: commit and push review checkpoint, then run final stabilization
 
 ## Dirty File Classification
 
 | Path | Classification | Owner/Reason |
 | --- | --- | --- |
-| `package.json`, `package-lock.json` | In-scope package files | T-005 direct/transitive updates, script approvals, PostCSS remediation |
-| `agent-runs/2026-07-15-codebase-pass/{05-package-and-dead-code-cleanup.md,run-state.md,task-queue.md}` | In-scope reports | T-005 evidence and resume state |
+| `src/hooks/useAutoSave.ts`, `src/hooks/useKeyboardShortcuts.ts`, `src/hooks/useProjects.ts` | In-scope review fixes | Current enabled retry, nudge ordering, rename dirty preservation |
+| `src/lib/sync/documentDirty.test.ts` | In-scope test | Rename dirty-state regression |
+| `agent-runs/2026-07-15-codebase-pass/{06-review.md,run-state.md,task-queue.md}` | In-scope reports | Judge evidence and resume state |
 
 ## Blockers
 
