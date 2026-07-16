@@ -11,23 +11,21 @@
 
 ## Current State
 
-- Phase: Review
+- Phase: Stabilization
 - Task: T-006
-- Status: Review fixes complete; checkpoint pending
-- Last command: `CI=true npm run build`
-- Last result: Judge PASS after fixes; lint, typecheck, 12 files/38 tests, and build pass
-- Last pushed commit: `7cdc62f`
+- Status: Stabilization PASS; checkpoint pending
+- Last command: `git diff --stat 41487bc..HEAD`
+- Last result: clean npm install/audit/tree/scripts, canonical gates, full diff, and Git Judge all PASS
+- Last pushed commit: `9605569`
 - Branch sync: matched `origin/dev` before this phase's report edits
-- Working tree: review-owned source/test/report/state/queue only
-- Next action: commit and push review checkpoint, then run final stabilization
+- Working tree: stabilization report/state/queue only
+- Next action: commit and push stabilization checkpoint, then complete T-007 integration
 
 ## Dirty File Classification
 
 | Path | Classification | Owner/Reason |
 | --- | --- | --- |
-| `src/hooks/useAutoSave.ts`, `src/hooks/useKeyboardShortcuts.ts`, `src/hooks/useProjects.ts` | In-scope review fixes | Current enabled retry, nudge ordering, rename dirty preservation |
-| `src/lib/sync/documentDirty.test.ts` | In-scope test | Rename dirty-state regression |
-| `agent-runs/2026-07-15-codebase-pass/{06-review.md,run-state.md,task-queue.md}` | In-scope reports | Judge evidence and resume state |
+| `agent-runs/2026-07-15-codebase-pass/{07-stabilization-loop.md,run-state.md,task-queue.md}` | In-scope reports | Final stabilization/Judge evidence and resume state |
 
 ## Blockers
 
