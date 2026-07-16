@@ -104,7 +104,13 @@ npm run dev          # dev server (http://localhost:3000)
 npm run build        # production build
 npm run start        # serve production build
 npm run lint         # ESLint (eslint-config-next)
+npm outdated         # compare declared packages with the npm registry
+npm audit            # inspect the resolved dependency tree for advisories
 ```
+
+For dependency refreshes, keep `package.json` and `package-lock.json` together, use
+explicit `npm install <package>@latest` changes for majors, and run the canonical
+validation command after each coherent update batch.
 
 ## Canonical validation / check command
 
