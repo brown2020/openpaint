@@ -17,6 +17,7 @@ interface ProjectState {
   syncStatus: SyncStatus;
   lastSyncTime: number | null;
   isDirty: boolean;
+  dirtyRevision: number;
 
   // Actions
   setProjects: (projects: ProjectDocument[]) => void;
@@ -34,7 +35,7 @@ interface ProjectState {
   setSyncStatus: (status: SyncStatus) => void;
   setLastSyncTime: (time: number | null) => void;
   markDirty: () => void;
-  clearDirty: () => void;
+  clearDirty: (expectedRevision?: number) => void;
 
   clearError: () => void;
   reset: () => void;
@@ -49,6 +50,7 @@ const initialState = {
   syncStatus: "synced" as SyncStatus,
   lastSyncTime: null,
   isDirty: false,
+  dirtyRevision: 0,
 };
 
 export const useProjectStore = create<ProjectState>((set) => ({
@@ -82,11 +84,14 @@ export const useProjectStore = create<ProjectState>((set) => ({
 
   // Current project actions
   setCurrentProject: (projectId, name) =>
-    set({
+    set((state) => ({
       currentProjectId: projectId,
       currentProjectName: name,
       isDirty: false,
-    }),
+      // Invalidate saves that started before this project transition, including
+      // a reload of the same project ID.
+      dirtyRevision: state.dirtyRevision + 1,
+    })),
 
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error, loading: false }),
@@ -94,8 +99,18 @@ export const useProjectStore = create<ProjectState>((set) => ({
   // Sync status actions
   setSyncStatus: (syncStatus) => set({ syncStatus }),
   setLastSyncTime: (lastSyncTime) => set({ lastSyncTime }),
-  markDirty: () => set({ isDirty: true }),
-  clearDirty: () => set({ isDirty: false }),
+  markDirty: () =>
+    set((state) => ({
+      isDirty: true,
+      dirtyRevision: state.dirtyRevision + 1,
+    })),
+  clearDirty: (expectedRevision) =>
+    set((state) =>
+      expectedRevision !== undefined &&
+      state.dirtyRevision !== expectedRevision
+        ? state
+        : { isDirty: false },
+    ),
 
   clearError: () => set({ error: null }),
 

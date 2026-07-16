@@ -22,25 +22,49 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
   } = options;
 
   const { user } = useAuthStore();
-  const { currentProjectId, isDirty } = useProjectStore();
+  const { currentProjectId, isDirty, dirtyRevision } = useProjectStore();
   const { saveProject } = useProjects();
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSavingRef = useRef(false);
+  const mountedRef = useRef(false);
 
-  const performSave = useCallback(async () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const performSave = useCallback(async function saveDirtyDocument() {
     if (isSavingRef.current) return;
     const { isDirty, syncStatus } = useProjectStore.getState();
     if (!isDirty || syncStatus === "syncing") return;
 
     isSavingRef.current = true;
+    let saved = false;
     try {
-      await saveProject();
+      saved = await saveProject();
     } finally {
       isSavingRef.current = false;
     }
-  }, [saveProject]);
+
+    const latestProject = useProjectStore.getState();
+    if (
+      saved &&
+      mountedRef.current &&
+      enabled &&
+      useAuthStore.getState().user &&
+      latestProject.currentProjectId === currentProjectId &&
+      latestProject.isDirty
+    ) {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      saveTimeoutRef.current = setTimeout(saveDirtyDocument, debounceDelay);
+    }
+  }, [currentProjectId, debounceDelay, enabled, saveProject]);
 
   // Debounced save when dirty flag changes
   useEffect(() => {
@@ -56,7 +80,15 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [enabled, user, currentProjectId, isDirty, debounceDelay, performSave]);
+  }, [
+    enabled,
+    user,
+    currentProjectId,
+    isDirty,
+    dirtyRevision,
+    debounceDelay,
+    performSave,
+  ]);
 
   // Regular interval save
   useEffect(() => {

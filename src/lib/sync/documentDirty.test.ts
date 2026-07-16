@@ -7,6 +7,7 @@ describe("markDocumentDirty", () => {
     useProjectStore.setState({
       currentProjectId: null,
       isDirty: false,
+      dirtyRevision: 0,
     });
   });
 
@@ -24,5 +25,27 @@ describe("markDocumentDirty", () => {
 
     markDocumentDirty();
     expect(useProjectStore.getState().isDirty).toBe(true);
+    expect(useProjectStore.getState().dirtyRevision).toBe(1);
+  });
+
+  it("does not clear edits made after a save snapshot was captured", () => {
+    useProjectStore.setState({
+      currentProjectId: "project-1",
+      currentProjectName: "Test",
+      isDirty: false,
+      dirtyRevision: 0,
+    });
+
+    markDocumentDirty();
+    const saveRevision = useProjectStore.getState().dirtyRevision;
+
+    markDocumentDirty();
+    useProjectStore.getState().clearDirty(saveRevision);
+
+    expect(useProjectStore.getState().isDirty).toBe(true);
+    expect(useProjectStore.getState().dirtyRevision).toBe(2);
+
+    useProjectStore.getState().clearDirty(2);
+    expect(useProjectStore.getState().isDirty).toBe(false);
   });
 });

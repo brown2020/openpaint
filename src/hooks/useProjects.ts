@@ -183,7 +183,8 @@ export function useProjects() {
   const saveProject = useCallback(async () => {
     if (!user || !currentProjectId) return false;
 
-    const { syncStatus } = useProjectStore.getState();
+    const projectId = currentProjectId;
+    const { syncStatus, dirtyRevision } = useProjectStore.getState();
     if (syncStatus === "syncing") return false;
 
     setSyncStatus("syncing");
@@ -209,7 +210,7 @@ export function useProjects() {
         const blob = await canvasToBlob(layerCanvas);
         const storageRef = await uploadLayerImage(
           user.uid,
-          currentProjectId,
+          projectId,
           layer.id,
           blob
         );
@@ -263,7 +264,7 @@ export function useProjects() {
           const thumbBlob = await canvasToBlob(thumbnailCanvas);
           thumbnailUrl = await uploadThumbnail(
             user.uid,
-            currentProjectId,
+            projectId,
             thumbBlob
           );
         }
@@ -273,28 +274,33 @@ export function useProjects() {
 
       const serializedLayers = JSON.parse(JSON.stringify(docLayers));
 
-      await updateProjectInFirestore(currentProjectId, {
+      await updateProjectInFirestore(projectId, {
         layers: layerMetadata,
         activeLayerId,
         thumbnailUrl,
         vectorLayers: serializedLayers,
       });
 
-      updateProjectInList(currentProjectId, {
+      updateProjectInList(projectId, {
         layers: layerMetadata,
         activeLayerId,
         thumbnailUrl,
       });
 
-      setSyncStatus("synced");
-      setLastSyncTime(Date.now());
-      clearDirty();
+      if (useProjectStore.getState().currentProjectId === projectId) {
+        setSyncStatus("synced");
+        setLastSyncTime(Date.now());
+        // Preserve the dirty flag when the document changed during upload.
+        clearDirty(dirtyRevision);
+      }
 
       return true;
     } catch (error) {
       console.error("Failed to save project:", error);
-      setError("Failed to save project. Please try again.");
-      setSyncStatus("error");
+      if (useProjectStore.getState().currentProjectId === projectId) {
+        setError("Failed to save project. Please try again.");
+        setSyncStatus("error");
+      }
       return false;
     }
   }, [
