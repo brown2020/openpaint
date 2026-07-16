@@ -16,8 +16,8 @@ Baseline/findings reports; npm registry engines/peer metadata; upstream Next/Pos
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending package checkpoint
-- Pushed to: pending
+- Commit: `7cdc62f`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `611b98b` before package edits
 
 ## Loop
@@ -105,10 +105,10 @@ Both the current-major and supported-major batches passed lint, typecheck, 12 te
 
 - Status inspected: only `package.json`, `package-lock.json`, and current package report/state/queue
 - Diff checked: manifest and lockfile summary reviewed; `git diff --check` passed
-- Files staged: pending exact-path staging
-- Dry-run push: pending
-- Push: pending
-- Post-push sync: pending
+- Files staged: `package.json`, `package-lock.json`, package report, run state, and task queue
+- Dry-run push: Passed
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 

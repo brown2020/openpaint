@@ -16,8 +16,8 @@ Established the untouched quality and dependency baseline for the July 2026 upda
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending baseline-report checkpoint
-- Pushed to: pending
+- Commit: `5c4b819`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact at `8923e4e` before report edits
 
 ## Loop
@@ -90,11 +90,11 @@ All canonical commands passed. `npm outdated` and `npm audit` exited 1 because t
 ## Commit-Push Checkpoint
 
 - Status inspected: clean before report edit
-- Diff checked: pending report checkpoint
-- Files staged: pending exact report/state/queue staging
-- Dry-run push: pending
-- Push: pending
-- Post-push sync: pending
+- Diff checked: Passed
+- Files staged: baseline report, run state, and task queue
+- Dry-run push: Passed
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 

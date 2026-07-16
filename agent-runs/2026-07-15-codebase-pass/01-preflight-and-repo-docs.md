@@ -16,8 +16,8 @@ Verified the repository, `dev` branch, remote access, prior run history, current
 
 - Branch: dev
 - Upstream: origin/dev
-- Commit: pending preflight checkpoint
-- Pushed to: pending
+- Commit: `8923e4e`
+- Pushed to: `origin/dev`
 - Sync status: clean and exact before phase edits (`origin/dev...HEAD` = `0 0`)
 
 ## Loop
@@ -93,10 +93,10 @@ rg -n "from ..." src
 
 - Status inspected: Passed; only `AGENTS.md`, `spec.md`, and the current run folder are changed
 - Diff checked: `git diff --check` passed
-- Files staged: pending exact-path staging
+- Files staged: `AGENTS.md`, `spec.md`, and `agent-runs/2026-07-15-codebase-pass/*`
 - Dry-run push: passed in preflight; repeat before push
-- Push: pending
-- Post-push sync: pending
+- Push: Passed
+- Post-push sync: Passed (`0 0`)
 
 ## Stabilization
 
