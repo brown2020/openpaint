@@ -130,7 +130,7 @@ export function Toolbar({
       <div className="flex-1" />
 
       {/* Help */}
-      <div className="text-xs text-gray-400 mr-4">
+      <div className="text-xs text-gray-300 mr-4">
         Press B for Brush, E for Eraser, [ ] for size
       </div>
 

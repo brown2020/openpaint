@@ -106,7 +106,7 @@ export function ColorPicker() {
           value={fillColor}
           onChange={(e) => applyFillToSelection(e.target.value)}
           className="w-7 h-7 cursor-pointer border-0 p-0 rounded"
-          title="Pick fill color"
+          aria-label="Pick fill color" title="Pick fill color"
         />
 
         <button
@@ -166,7 +166,7 @@ export function ColorPicker() {
           value={strokeColor}
           onChange={(e) => applyStrokeToSelection(e.target.value)}
           className="w-7 h-7 cursor-pointer border-0 p-0 rounded"
-          title="Pick stroke color"
+          aria-label="Pick stroke color" title="Pick stroke color"
         />
 
         <button
@@ -185,8 +185,8 @@ export function ColorPicker() {
       {/* Swap button */}
       <button
         onClick={swapFillStroke}
-        className="flex items-center justify-center gap-1.5 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded"
-        title="Swap fill & stroke (X)"
+        className="flex items-center justify-center gap-1.5 py-1 text-xs text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded"
+        aria-label="Swap fill and stroke" title="Swap fill & stroke (X)"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -196,7 +196,7 @@ export function ColorPicker() {
 
       {/* Color presets */}
       <div>
-        <div className="text-[10px] text-gray-400 mb-1 uppercase tracking-wider">
+        <div className="text-[10px] text-gray-600 mb-1 uppercase tracking-wider">
           Presets → {activeTarget}
         </div>
         <div className="grid grid-cols-6 gap-1">

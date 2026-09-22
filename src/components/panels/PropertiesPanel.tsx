@@ -21,13 +21,13 @@ export function PropertiesPanel() {
   if (selectedObjectIds.length === 0) {
     return (
       <div className="flex flex-col gap-2 p-2">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
           Canvas
-        </h3>
+        </p>
         <div className="text-xs text-gray-600">
           <div>Width: {canvasSize.width}px</div>
           <div>Height: {canvasSize.height}px</div>
-          <div className="mt-2 text-gray-400">
+          <div className="mt-2 text-gray-600">
             {layers.reduce((n, l) => n + l.objects.length, 0)} objects
           </div>
         </div>
@@ -44,9 +44,9 @@ export function PropertiesPanel() {
   // Multiple selection
   return (
     <div className="flex flex-col gap-2 p-2">
-      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+      <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
         Selection
-      </h3>
+      </p>
       <div className="text-xs text-gray-600">
         {selectedObjectIds.length} objects selected
       </div>
@@ -115,9 +115,9 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
   return (
     <div className="flex flex-col gap-3 p-2 text-xs">
       {/* Object type header */}
-      <h3 className="font-semibold text-gray-500 uppercase tracking-wide">
+      <p className="font-semibold text-gray-700 uppercase tracking-wide">
         {obj.type}
-      </h3>
+      </p>
 
       {/* Name */}
       <PropInput

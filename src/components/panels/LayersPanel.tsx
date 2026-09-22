@@ -69,7 +69,7 @@ export function LayersPanel() {
             className={`p-1 rounded ${
               canDeleteLayer
                 ? "text-gray-600 hover:text-red-600 hover:bg-gray-300"
-                : "text-gray-400 cursor-not-allowed"
+                : "text-gray-600 cursor-not-allowed"
             }`}
             title="Delete Layer"
             aria-label="Delete active layer"
@@ -100,7 +100,7 @@ export function LayersPanel() {
                 <button
                   type="button"
                   onClick={() => updateLayer(layer.id, { visible: !layer.visible })}
-                  className={`p-1 rounded ${layer.visible ? "text-gray-700" : "text-gray-400"}`}
+                  className={`p-1 rounded ${layer.visible ? "text-gray-700" : "text-gray-600"}`}
                   title={layer.visible ? "Hide layer" : "Show layer"}
                   aria-label={layer.visible ? "Hide layer" : "Show layer"}
                 >
@@ -110,7 +110,7 @@ export function LayersPanel() {
                 <button
                   type="button"
                   onClick={() => updateLayer(layer.id, { locked: !layer.locked })}
-                  className={`p-1 rounded ${layer.locked ? "text-yellow-600" : "text-gray-400"}`}
+                  className={`p-1 rounded ${layer.locked ? "text-yellow-600" : "text-gray-600"}`}
                   title={layer.locked ? "Unlock layer" : "Lock layer"}
                   aria-label={layer.locked ? "Unlock layer" : "Lock layer"}
                 >
@@ -124,7 +124,7 @@ export function LayersPanel() {
                   aria-pressed={isActive}
                 >
                   <span className="text-sm truncate block">{layer.name}</span>
-                  <span className="text-[10px] text-gray-400">
+                  <span className="text-[10px] text-gray-600">
                     {layer.objects.length} object{layer.objects.length !== 1 ? "s" : ""}
                   </span>
                 </button>

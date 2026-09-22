@@ -34,7 +34,7 @@ export function BrushSettings() {
   return (
     <div className="flex flex-col gap-3 p-2 bg-gray-100 rounded-lg">
       {/* Tool name header */}
-      <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+      <div className="text-xs font-medium text-gray-700 uppercase tracking-wide">
         {toolLabel(activeTool)}
       </div>
 
@@ -51,7 +51,7 @@ export function BrushSettings() {
               />
               Stroke
             </label>
-            <span className="text-xs text-gray-500 ml-auto">
+            <span className="text-xs text-gray-700 ml-auto">
               {strokeWidth}px
             </span>
           </div>
@@ -109,13 +109,13 @@ export function BrushSettings() {
 
       {/* Usage hints for utility tools */}
       {activeTool === "selection" && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           Click to select. Drag to move. Shift+click for multi-select.
         </p>
       )}
       {activeTool === "pen" && (
         <>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             Click for corner points. Click-drag for smooth curves. Click the
             start point to close. Enter to finish, Escape to cancel.
           </p>
@@ -123,22 +123,22 @@ export function BrushSettings() {
       )}
 
       {activeTool === "eraser" && (
-        <p className="text-xs text-gray-400">Click an object to delete it.</p>
+        <p className="text-xs text-gray-600">Click an object to delete it.</p>
       )}
       {activeTool === "fill" && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           Click an object to apply the current fill color.
         </p>
       )}
       {activeTool === "eyedropper" && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-600">
           Click an object to pick its color.
         </p>
       )}
       {activeTool === "text" && (
         <>
           <TextSettings />
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             Click on the canvas to place text. Double-click text to edit with
             the selection tool.
           </p>

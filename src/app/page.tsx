@@ -75,6 +75,7 @@ export default function Home() {
         />
       )}
 
+      <header>
       <Toolbar
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -96,8 +97,9 @@ export default function Home() {
               : "Save (Ctrl+S)"
         }
       />
+      </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <main className="flex-1 flex overflow-hidden min-h-0">
         <div className="w-16 flex flex-col gap-2 p-2 bg-gray-100 border-r border-gray-300">
           <ToolPanel />
         </div>
@@ -117,9 +119,11 @@ export default function Home() {
             <LayersPanel />
           </div>
         </div>
-      </div>
+      </main>
 
+      <footer>
       <StatusBar />
+      </footer>
 
       <AuthModal
         isOpen={authModalOpen}
