@@ -64,7 +64,7 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {localError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
           {localError}
         </div>
       )}

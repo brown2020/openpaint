@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Link from "next/link";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useAuthStore } from "@/store/authStore";
 import { useDocumentStore } from "@/store/documentStore";
@@ -138,13 +139,12 @@ export function Toolbar({
       {user ? (
         <UserMenu />
       ) : onSignIn ? (
-        <button
-          type="button"
-          onClick={onSignIn}
+        <Link
+          href="/login"
           className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         >
           Sign in
-        </button>
+        </Link>
       ) : null}
     </div>
   );

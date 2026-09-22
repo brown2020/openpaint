@@ -1,15 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signInWithEmail, getAuthErrorMessage } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/store/authStore";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { PasswordField } from "./PasswordField";
+import { waitForSignedInUser } from "@/lib/auth/waitForSession";
 
 interface LoginFormProps {
   onSuccess?: () => void;
   onSwitchToSignUp?: () => void;
   onSwitchToEmailLink?: () => void;
   onSwitchToForgotPassword?: () => void;
+  /** When true, use Next.js Links for account switches (dedicated auth routes). */
+  useLinks?: boolean;
+  /** After success, hard-navigate here once session is settled. */
+  redirectTo?: string;
 }
 
 /**
@@ -20,6 +27,8 @@ export function LoginForm({
   onSwitchToSignUp,
   onSwitchToEmailLink,
   onSwitchToForgotPassword,
+  useLinks = false,
+  redirectTo,
 }: LoginFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,6 +43,11 @@ export function LoginForm({
 
     try {
       await signInWithEmail(email, password);
+      await waitForSignedInUser();
+      if (redirectTo) {
+        window.location.assign(redirectTo);
+        return;
+      }
       onSuccess?.();
     } catch (error) {
       const message = getAuthErrorMessage(error);
@@ -45,9 +59,12 @@ export function LoginForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {localError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div
+          role="alert"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+        >
           {localError}
         </div>
       )}
@@ -62,6 +79,8 @@ export function LoginForm({
         <input
           id="login-email"
           type="email"
+          name="email"
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -70,31 +89,33 @@ export function LoginForm({
         />
       </div>
 
-      <div>
-        <label
-          htmlFor="login-password"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Password
-        </label>
-        <input
-          id="login-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          placeholder="Enter your password"
-        />
-        {onSwitchToForgotPassword && (
+      <PasswordField
+        id="login-password"
+        label="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        required
+        placeholder="Enter your password"
+      />
+
+      <div className="-mt-2">
+        {useLinks ? (
+          <Link
+            href="/forgot-password"
+            className="text-sm text-blue-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+          >
+            Forgot password?
+          </Link>
+        ) : onSwitchToForgotPassword ? (
           <button
             type="button"
             onClick={onSwitchToForgotPassword}
-            className="mt-1 text-sm text-blue-500 hover:text-blue-600"
+            className="text-sm text-blue-500 hover:text-blue-600"
           >
             Forgot password?
           </button>
-        )}
+        ) : null}
       </div>
 
       <button
@@ -116,7 +137,17 @@ export function LoginForm({
             Sign in with email link instead
           </button>
         )}
-        {onSwitchToSignUp && (
+        {useLinks ? (
+          <p className="text-sm text-gray-600">
+            Don&apos;t have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            >
+              Sign up
+            </Link>
+          </p>
+        ) : onSwitchToSignUp ? (
           <p className="text-sm text-gray-600">
             Don&apos;t have an account?{" "}
             <button
@@ -127,7 +158,7 @@ export function LoginForm({
               Sign up
             </button>
           </p>
-        )}
+        ) : null}
       </div>
     </form>
   );

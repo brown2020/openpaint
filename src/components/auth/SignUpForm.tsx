@@ -1,19 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signUpWithEmail, getAuthErrorMessage } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/store/authStore";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { PasswordField } from "./PasswordField";
+import { waitForSignedInUser } from "@/lib/auth/waitForSession";
 
 interface SignUpFormProps {
   onSuccess?: () => void;
   onSwitchToLogin?: () => void;
+  useLinks?: boolean;
+  redirectTo?: string;
 }
 
 /**
  * Email/password signup form
  */
-export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
+export function SignUpForm({
+  onSuccess,
+  onSwitchToLogin,
+  useLinks = false,
+  redirectTo,
+}: SignUpFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -25,13 +35,11 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
     e.preventDefault();
     setLocalError(null);
 
-    // Validate passwords match
     if (password !== confirmPassword) {
       setLocalError("Passwords do not match.");
       return;
     }
 
-    // Validate password length
     if (password.length < 6) {
       setLocalError("Password must be at least 6 characters.");
       return;
@@ -41,6 +49,11 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
 
     try {
       await signUpWithEmail(email, password);
+      await waitForSignedInUser();
+      if (redirectTo) {
+        window.location.assign(redirectTo);
+        return;
+      }
       onSuccess?.();
     } catch (error) {
       const message = getAuthErrorMessage(error);
@@ -52,9 +65,12 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {localError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div
+          role="alert"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+        >
           {localError}
         </div>
       )}
@@ -69,6 +85,8 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
         <input
           id="signup-email"
           type="email"
+          name="email"
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -77,43 +95,27 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
         />
       </div>
 
-      <div>
-        <label
-          htmlFor="signup-password"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Password
-        </label>
-        <input
-          id="signup-password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          placeholder="At least 6 characters"
-        />
-      </div>
+      <PasswordField
+        id="signup-password"
+        label="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="new-password"
+        required
+        minLength={6}
+        placeholder="At least 6 characters"
+      />
 
-      <div>
-        <label
-          htmlFor="signup-confirm-password"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Confirm Password
-        </label>
-        <input
-          id="signup-confirm-password"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={6}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-          placeholder="Confirm your password"
-        />
-      </div>
+      <PasswordField
+        id="signup-confirm-password"
+        label="Confirm Password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        autoComplete="new-password"
+        required
+        minLength={6}
+        placeholder="Confirm your password"
+      />
 
       <button
         type="submit"
@@ -124,7 +126,17 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
         Create Account
       </button>
 
-      {onSwitchToLogin && (
+      {useLinks ? (
+        <p className="text-center text-sm text-gray-600">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+          >
+            Sign in
+          </Link>
+        </p>
+      ) : onSwitchToLogin ? (
         <p className="text-center text-sm text-gray-600">
           Already have an account?{" "}
           <button
@@ -135,7 +147,7 @@ export function SignUpForm({ onSuccess, onSwitchToLogin }: SignUpFormProps) {
             Sign in
           </button>
         </p>
-      )}
+      ) : null}
     </form>
   );
 }

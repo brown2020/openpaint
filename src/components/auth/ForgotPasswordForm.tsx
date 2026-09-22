@@ -1,15 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { sendPasswordReset, getAuthErrorMessage } from "@/lib/firebase/auth";
 import { useAuthStore } from "@/store/authStore";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 
 interface ForgotPasswordFormProps {
   onBackToLogin?: () => void;
+  useLinks?: boolean;
 }
 
-export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
+export function ForgotPasswordForm({
+  onBackToLogin,
+  useLinks = false,
+}: ForgotPasswordFormProps) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -33,10 +38,34 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
     }
   };
 
+  const backControl = useLinks ? (
+    <p className="text-center text-sm text-gray-600">
+      <Link
+        href="/login"
+        className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+      >
+        Back to Sign In
+      </Link>
+    </p>
+  ) : onBackToLogin ? (
+    <p className="text-center text-sm text-gray-600">
+      <button
+        type="button"
+        onClick={onBackToLogin}
+        className="text-blue-500 hover:text-blue-600 font-medium"
+      >
+        Back to Sign In
+      </button>
+    </p>
+  ) : null;
+
   if (emailSent) {
     return (
       <div className="space-y-4">
-        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div
+          role="status"
+          className="p-4 bg-green-50 border border-green-200 rounded-lg"
+        >
           <h3 className="font-medium text-green-800 mb-1">Check your email</h3>
           <p className="text-sm text-green-700">
             We sent a password reset link to <strong>{email}</strong>. Click the
@@ -55,25 +84,18 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
           </button>
         </p>
 
-        {onBackToLogin && (
-          <p className="text-center text-sm text-gray-600">
-            <button
-              type="button"
-              onClick={onBackToLogin}
-              className="text-blue-500 hover:text-blue-600 font-medium"
-            >
-              Back to Sign In
-            </button>
-          </p>
-        )}
+        {backControl}
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
       {localError && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div
+          role="alert"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+        >
           {localError}
         </div>
       )}
@@ -93,6 +115,8 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         <input
           id="forgot-password-email"
           type="email"
+          name="email"
+          autoComplete="username"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -110,7 +134,17 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
         Send Reset Link
       </button>
 
-      {onBackToLogin && (
+      {useLinks ? (
+        <p className="text-center text-sm text-gray-600">
+          Remember your password?{" "}
+          <Link
+            href="/login"
+            className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+          >
+            Back to Sign In
+          </Link>
+        </p>
+      ) : onBackToLogin ? (
         <p className="text-center text-sm text-gray-600">
           Remember your password?{" "}
           <button
@@ -121,7 +155,7 @@ export function ForgotPasswordForm({ onBackToLogin }: ForgotPasswordFormProps) {
             Back to Sign In
           </button>
         </p>
-      )}
+      ) : null}
     </form>
   );
 }

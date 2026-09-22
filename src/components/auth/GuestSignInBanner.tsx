@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 interface GuestSignInBannerProps {
-  onSignIn: () => void;
+  onSignIn?: () => void;
   onOpenCloudProjects: () => void;
   dismissed: boolean;
   onDismiss: () => void;
@@ -11,7 +13,6 @@ interface GuestSignInBannerProps {
  * Non-blocking prompt for guests to sign in for cloud features.
  */
 export function GuestSignInBanner({
-  onSignIn,
   onOpenCloudProjects,
   dismissed,
   onDismiss,
@@ -26,13 +27,18 @@ export function GuestSignInBanner({
     >
       <span>Sign in to save projects to the cloud and open them from any device.</span>
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onSignIn}
+        <Link
+          href="/login"
           className="px-3 py-1 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
         >
           Sign in
-        </button>
+        </Link>
+        <Link
+          href="/signup"
+          className="px-3 py-1 rounded-md border border-blue-300 text-blue-800 font-medium hover:bg-blue-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+        >
+          Sign up
+        </Link>
         <button
           type="button"
           onClick={onOpenCloudProjects}

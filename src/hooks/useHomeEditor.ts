@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuthStore } from "@/store/authStore";
+import { waitForSignedInUser } from "@/lib/auth/waitForSession";
 import { useProjectStore } from "@/store/projectStore";
 import { useCanvasStore } from "@/store/canvasStore";
 import { useDocumentStore } from "@/store/documentStore";
@@ -86,11 +87,12 @@ export function useHomeEditor() {
     const intent = authIntentRef.current;
     setAuthModalOpen(false);
     authIntentRef.current = "none";
-    queueMicrotask(() => {
+    void (async () => {
+      await waitForSignedInUser();
       if (useAuthStore.getState().user && intent === "openProjects") {
         setProjectListOpen(true);
       }
-    });
+    })();
   }, []);
 
   const handleDismissBanner = useCallback(() => {
