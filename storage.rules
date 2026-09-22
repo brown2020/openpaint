@@ -3,17 +3,18 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    match /users/{userId}/projects/{projectId}/{allPaths=**} {
-      allow read: if request.auth != null
-        && request.auth.uid == userId;
+    function isPathOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
 
-      allow create, update: if request.auth != null
-        && request.auth.uid == userId
+    match /users/{userId}/projects/{projectId}/{allPaths=**} {
+      allow read: if isPathOwner(userId);
+
+      allow create, update: if isPathOwner(userId)
         && request.resource.size < 10 * 1024 * 1024
         && request.resource.contentType.matches('image/png');
 
-      allow delete: if request.auth != null
-        && request.auth.uid == userId;
+      allow delete: if isPathOwner(userId);
     }
 
     match /{allPaths=**} {

@@ -36,15 +36,20 @@ export function TextSettings() {
       </label>
 
       <div className="flex items-center gap-2">
-        <label className="text-xs text-gray-700 shrink-0">Size</label>
+        <label htmlFor="text-font-size" className="text-xs text-gray-700 shrink-0">Size</label>
         <input
+          id="text-font-size"
           type="number"
           min={8}
           max={200}
           value={textOptions.fontSize}
-          onChange={(e) =>
-            setTextOptions({ fontSize: Number(e.target.value) || 24 })
-          }
+          onChange={(e) => {
+            const raw = e.target.value;
+            if (raw.trim() === "") return;
+            const n = Number(raw);
+            if (!Number.isFinite(n)) return;
+            setTextOptions({ fontSize: n || 24 });
+          }}
           className="w-16 px-2 py-1 text-xs border border-gray-300 rounded"
         />
         <span className="text-xs text-gray-500">px</span>

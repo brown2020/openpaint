@@ -52,11 +52,14 @@ export function ProjectListModal({
 
   const handleSelectProject = async (projectId: string) => {
     setLoading(true);
-    const result = await loadProject(projectId);
-    if (result) {
-      onClose?.();
+    try {
+      const result = await loadProject(projectId);
+      if (result) {
+        onClose?.();
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleCreateProject = async (name: string, size: Size) => {

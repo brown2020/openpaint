@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { normalizeTextAlign, textStyleFromOptions } from "@/lib/vector/textObject";
 import { useDocumentStore } from "@/store/documentStore";
 import { useCanvasStore } from "@/store/canvasStore";
@@ -181,8 +181,9 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
 
       {/* Opacity */}
       <div className="flex items-center gap-2">
-        <label className="text-gray-600 w-14">Opacity</label>
+        <label htmlFor="prop-opacity" className="text-gray-600 w-14">Opacity</label>
         <input
+          id="prop-opacity"
           type="range"
           min={0}
           max={100}
@@ -203,11 +204,12 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
 
       {/* Fill */}
       <div className="flex flex-col gap-1">
-        <label className="text-gray-600 font-medium">Fill</label>
+        <span className="text-gray-600 font-medium" id="prop-fill-label">Fill</span>
         {obj.fill && obj.fill.type === "solid" ? (
           <div className="flex items-center gap-2">
             <input
               type="color"
+              aria-labelledby="prop-fill-label"
               value={obj.fill.color}
               onChange={(e) => {
                 const before = obj.fill;
@@ -246,12 +248,13 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
 
       {/* Stroke */}
       <div className="flex flex-col gap-1">
-        <label className="text-gray-600 font-medium">Stroke</label>
+        <span className="text-gray-600 font-medium" id="prop-stroke-label">Stroke</span>
         {obj.stroke ? (
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <input
                 type="color"
+                aria-labelledby="prop-stroke-label"
                 value={obj.stroke.color}
                 onChange={(e) => {
                   const before = obj.stroke;
@@ -348,33 +351,20 @@ function TextObjectProps({
   updateObject: ReturnType<typeof useDocumentStore.getState>["updateObject"];
   commitChange: (field: string, before: unknown, after: unknown) => void;
 }) {
-  const textOptions = useCanvasStore((s) => s.textOptions);
   const setTextOptions = useCanvasStore((s) => s.setTextOptions);
-  const skipFontSyncRef = useRef(true);
 
   useEffect(() => {
-    if (skipFontSyncRef.current) {
-      skipFontSyncRef.current = false;
-      setTextOptions({
-        fontFamily: obj.fontFamily,
-        fontSize: obj.fontSize,
-        fontWeight: obj.fontWeight,
-        fontStyle: obj.fontStyle,
-        textAlign: normalizeTextAlign(obj.textAlign),
-      });
-      return;
-    }
+    setTextOptions({
+      fontFamily: obj.fontFamily,
+      fontSize: obj.fontSize,
+      fontWeight: obj.fontWeight,
+      fontStyle: obj.fontStyle,
+      textAlign: normalizeTextAlign(obj.textAlign),
+    });
+  }, [obj.id, obj.fontFamily, obj.fontSize, obj.fontWeight, obj.fontStyle, obj.textAlign, setTextOptions]);
 
-    const style = textStyleFromOptions(textOptions);
-    const changed =
-      obj.fontFamily !== style.fontFamily ||
-      obj.fontSize !== style.fontSize ||
-      obj.fontWeight !== style.fontWeight ||
-      obj.fontStyle !== style.fontStyle ||
-      obj.textAlign !== style.textAlign;
-
-    if (!changed) return;
-
+  const applyTextStyle = () => {
+    const style = textStyleFromOptions(useCanvasStore.getState().textOptions);
     const before = {
       fontFamily: obj.fontFamily,
       fontSize: obj.fontSize,
@@ -382,16 +372,24 @@ function TextObjectProps({
       fontStyle: obj.fontStyle,
       textAlign: obj.textAlign,
     };
+    const changed =
+      before.fontFamily !== style.fontFamily ||
+      before.fontSize !== style.fontSize ||
+      before.fontWeight !== style.fontWeight ||
+      before.fontStyle !== style.fontStyle ||
+      before.textAlign !== style.textAlign;
+    if (!changed) return;
     updateObject(obj.id, style);
     commitChange("textStyle", before, style);
-  }, [textOptions, obj, setTextOptions, updateObject, commitChange]);
+  };
 
   return (
     <div className="flex flex-col gap-2 border-t border-gray-200 pt-2">
       <span className="text-gray-600 font-medium">Text</span>
-      <label className="text-gray-600">
+      <label htmlFor="text-content" className="text-gray-600">
         Content
         <textarea
+          id="text-content"
           value={obj.content}
           onChange={(e) => {
             const before = obj.content;
@@ -403,7 +401,22 @@ function TextObjectProps({
           className="mt-0.5 w-full px-1.5 py-1 text-xs border border-gray-300 rounded bg-white resize-y"
         />
       </label>
-      <TextSettings />
+      <div
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            applyTextStyle();
+          }
+        }}
+      >
+        <TextSettings />
+      </div>
+      <button
+        type="button"
+        onClick={applyTextStyle}
+        className="text-xs text-blue-600 hover:text-blue-800 self-start"
+      >
+        Apply text style
+      </button>
     </div>
   );
 }
@@ -427,15 +440,23 @@ function NumInput({
   max?: number;
   suffix?: string;
 }) {
+  const inputId = `num-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
     <div className="flex items-center gap-1">
-      <label className="text-gray-600 w-8 shrink-0">{label}</label>
+      <label htmlFor={inputId} className="text-gray-600 w-8 shrink-0">{label}</label>
       <input
+        id={inputId}
         type="number"
         value={value}
         min={min}
         max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw.trim() === "") return;
+          const parsed = Number(raw);
+          if (!Number.isFinite(parsed)) return;
+          onChange(parsed);
+        }}
         className="w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white"
       />
       {suffix && <span className="text-gray-400">{suffix}</span>}
@@ -454,10 +475,12 @@ function PropInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const inputId = `prop-${label.replace(/\s+/g, "-").toLowerCase()}`;
   return (
     <div className="flex items-center gap-1">
-      <label className="text-gray-600 w-14 shrink-0">{label}</label>
+      <label htmlFor={inputId} className="text-gray-600 w-14 shrink-0">{label}</label>
       <input
+        id={inputId}
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}

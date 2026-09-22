@@ -1,22 +1,10 @@
 "use client";
 
-const DISMISS_KEY = "openpaint-guest-banner-dismissed";
-
 interface GuestSignInBannerProps {
   onSignIn: () => void;
   onOpenCloudProjects: () => void;
   dismissed: boolean;
   onDismiss: () => void;
-}
-
-export function getGuestBannerDismissed(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(DISMISS_KEY) === "1";
-}
-
-export function setGuestBannerDismissed(): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(DISMISS_KEY, "1");
 }
 
 /**

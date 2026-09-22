@@ -196,35 +196,37 @@ export function useProjects() {
       const docLayers = docState.layers;
       const activeLayerId = docState.activeLayerId;
 
-      const layerMetadata: LayerMetadata[] = [];
+      const layerMetadata = (
+        await Promise.all(
+          docLayers.map(async (layer) => {
+            const layerCanvas = document.createElement("canvas");
+            layerCanvas.width = canvasSize.width;
+            layerCanvas.height = canvasSize.height;
+            const layerCtx = layerCanvas.getContext("2d");
+            if (!layerCtx) return null;
 
-      for (const layer of docLayers) {
-        const layerCanvas = document.createElement("canvas");
-        layerCanvas.width = canvasSize.width;
-        layerCanvas.height = canvasSize.height;
-        const layerCtx = layerCanvas.getContext("2d");
-        if (!layerCtx) continue;
+            renderScene(layerCtx, [{ ...layer, visible: true }], canvasSize.width, canvasSize.height);
 
-        renderScene(layerCtx, [{ ...layer, visible: true }], canvasSize.width, canvasSize.height);
+            const blob = await canvasToBlob(layerCanvas);
+            const storageRef = await uploadLayerImage(
+              user.uid,
+              projectId,
+              layer.id,
+              blob
+            );
 
-        const blob = await canvasToBlob(layerCanvas);
-        const storageRef = await uploadLayerImage(
-          user.uid,
-          projectId,
-          layer.id,
-          blob
-        );
-
-        layerMetadata.push({
-          id: layer.id,
-          name: layer.name,
-          visible: layer.visible,
-          opacity: layer.opacity,
-          locked: layer.locked,
-          blendMode: "source-over",
-          storageRef,
-        });
-      }
+            return {
+              id: layer.id,
+              name: layer.name,
+              visible: layer.visible,
+              opacity: layer.opacity,
+              locked: layer.locked,
+              blendMode: "source-over" as const,
+              storageRef,
+            };
+          }),
+        )
+      ).filter((row): row is NonNullable<typeof row> => row != null);
 
       let thumbnailUrl: string | null = null;
       try {
@@ -272,7 +274,7 @@ export function useProjects() {
         console.error("Failed to generate thumbnail:", thumbError);
       }
 
-      const serializedLayers = JSON.parse(JSON.stringify(docLayers));
+      const serializedLayers = structuredClone(docLayers);
 
       await updateProjectInFirestore(projectId, {
         layers: layerMetadata,

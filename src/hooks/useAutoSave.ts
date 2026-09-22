@@ -30,7 +30,10 @@ export function useAutoSave(options: UseAutoSaveOptions = {}) {
   const isSavingRef = useRef(false);
   const mountedRef = useRef(false);
   const enabledRef = useRef(enabled);
-  enabledRef.current = enabled;
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
 
   useEffect(() => {
     mountedRef.current = true;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useCallback } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useDocumentStore } from "@/store/documentStore";
 import { hitTestLayers } from "@/lib/vector/hitTest";
 import { getWorldBounds, mergeBounds, boundsIntersect } from "@/lib/vector/bounds";
@@ -46,7 +46,8 @@ function freshState(): DragState {
  * All handlers accept canvas-space points (not screen space).
  */
 export function useSelectionTool() {
-  const stateRef = useRef<DragState>(freshState());
+  const [dragSeed] = useState(freshState);
+  const stateRef = useRef(dragSeed);
 
   const onPointerDown = useCallback(
     (point: Point2D, shiftKey: boolean, ctx: CanvasRenderingContext2D) => {

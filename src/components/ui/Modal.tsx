@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useId, useRef } from "react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,7 +12,7 @@ interface ModalProps {
 }
 
 /**
- * Reusable modal component
+ * Reusable modal component using the native dialog element.
  */
 export function Modal({
   isOpen,
@@ -22,31 +22,28 @@ export function Modal({
   showCloseButton = true,
   size = "md",
 }: ModalProps) {
-  // Handle escape key
-  const handleEscape = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape" && onClose) {
-        onClose();
-      }
-    },
-    [onClose]
-  );
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useEffect(() => {
-    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
 
-    document.body.style.overflow = "hidden";
-    if (onClose) {
-      document.addEventListener("keydown", handleEscape);
+    if (isOpen && !dialog.open) {
+      dialog.showModal();
+    } else if (!isOpen && dialog.open) {
+      dialog.close();
     }
+  }, [isOpen]);
 
-    return () => {
-      document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = "unset";
-    };
-  }, [isOpen, handleEscape, onClose]);
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !onClose) return;
 
-  if (!isOpen) return null;
+    const onDialogClose = () => onClose();
+    dialog.addEventListener("close", onDialogClose);
+    return () => dialog.removeEventListener("close", onDialogClose);
+  }, [onClose]);
 
   const sizeClasses = {
     sm: "max-w-sm",
@@ -55,53 +52,49 @@ export function Modal({
     xl: "max-w-xl",
   };
 
-  // Determine if modal is closable
   const canClose = !!onClose;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={canClose ? onClose : undefined}
-      />
-
-      {/* Modal content */}
-      <div
-        className={`relative bg-white rounded-lg shadow-xl w-full mx-4 ${sizeClasses[size]}`}
-      >
-        {/* Header */}
-        {(title || (showCloseButton && canClose)) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            {title && (
-              <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
-            )}
-            {showCloseButton && canClose && (
-              <button
-                onClick={onClose}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={title ? titleId : undefined}
+      aria-label={title ? undefined : "Dialog"}
+      className={`rounded-lg shadow-xl w-full ${sizeClasses[size]} p-0 backdrop:bg-black/50 bg-white`}
+    >
+      {(title || (showCloseButton && canClose)) && (
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          {title && (
+            <h2 id={titleId} className="text-lg font-semibold text-gray-800">
+              {title}
+            </h2>
+          )}
+          {showCloseButton && canClose && (
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              aria-label="Close"
+              className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
-        {/* Body */}
-        <div className="p-6">{children}</div>
-      </div>
-    </div>
+      <div className="p-6">{children}</div>
+    </dialog>
   );
 }

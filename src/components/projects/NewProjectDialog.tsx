@@ -97,10 +97,10 @@ export function NewProjectDialog({
         </div>
 
         {/* Canvas Size */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <fieldset>
+          <legend className="block text-sm font-medium text-gray-700 mb-2">
             Canvas Size
-          </label>
+          </legend>
           <div className="space-y-2">
             {PRESET_SIZES.map((preset, index) => (
               <label
@@ -122,7 +122,7 @@ export function NewProjectDialog({
               </label>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         {/* Custom Size Inputs */}
         {isCustom && (
@@ -138,7 +138,13 @@ export function NewProjectDialog({
                 id="custom-width"
                 type="number"
                 value={customWidth}
-                onChange={(e) => setCustomWidth(Number(e.target.value))}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw.trim() === "") return;
+                  const n = Number(raw);
+                  if (!Number.isFinite(n)) return;
+                  setCustomWidth(n);
+                }}
                 min={1}
                 max={4096}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -155,7 +161,13 @@ export function NewProjectDialog({
                 id="custom-height"
                 type="number"
                 value={customHeight}
-                onChange={(e) => setCustomHeight(Number(e.target.value))}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw.trim() === "") return;
+                  const n = Number(raw);
+                  if (!Number.isFinite(n)) return;
+                  setCustomHeight(n);
+                }}
                 min={1}
                 max={4096}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"

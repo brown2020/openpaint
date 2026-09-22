@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   getGuestBannerDismissed,
   setGuestBannerDismissed,
-} from "./GuestSignInBanner";
+} from "./guestBannerStorage";
 
 describe("GuestSignInBanner persistence", () => {
   beforeEach(() => {

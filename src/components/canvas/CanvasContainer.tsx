@@ -9,9 +9,8 @@ import { VectorCanvas } from "./VectorCanvas";
  */
 export function CanvasContainer() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const { zoom, setZoom, pan, setPan } = useCanvasStore();
+  const { zoom, setZoom, setPan } = useCanvasStore();
 
-  // Handle wheel zoom
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -21,54 +20,56 @@ export function CanvasContainer() {
         setZoom(newZoom);
       }
     },
-    [zoom, setZoom]
+    [zoom, setZoom],
   );
 
-  // Set up wheel event listener
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      return undefined;
+    }
 
-    container.addEventListener("wheel", handleWheel, { passive: false });
+    const listener = handleWheel;
+    container.addEventListener("wheel", listener, { passive: false });
     return () => {
-      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("wheel", listener);
     };
   }, [handleWheel]);
 
-  // Handle middle mouse button pan
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent) => {
-      if (e.button === 1) {
-        // Middle mouse button
-        e.preventDefault();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const startPan = { ...pan };
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.button !== 1) return;
+      e.preventDefault();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startPan = { ...useCanvasStore.getState().pan };
+      const currentZoom = useCanvasStore.getState().zoom;
 
-        const handleMouseMove = (moveEvent: MouseEvent) => {
-          const dx = moveEvent.clientX - startX;
-          const dy = moveEvent.clientY - startY;
-          setPan({
-            x: startPan.x + dx / zoom,
-            y: startPan.y + dy / zoom,
-          });
-        };
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        setPan({
+          x: startPan.x + dx / currentZoom,
+          y: startPan.y + dy / currentZoom,
+        });
+      };
 
-        const handleMouseUp = () => {
-          document.removeEventListener("mousemove", handleMouseMove);
-          document.removeEventListener("mouseup", handleMouseUp);
-        };
+      const handleMouseUp = () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
 
-        document.addEventListener("mousemove", handleMouseMove);
-        document.addEventListener("mouseup", handleMouseUp);
-      }
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
     },
-    [pan, setPan, zoom]
+    [setPan],
   );
 
   return (
     <div
       ref={containerRef}
+      role="application"
+      aria-label="Drawing canvas"
       className="flex-1 overflow-hidden bg-gray-300"
       onMouseDown={handleMouseDown}
       onContextMenu={(e) => e.preventDefault()}

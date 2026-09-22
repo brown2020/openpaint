@@ -194,11 +194,12 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions = {}) {
             index: number;
           }> = [];
 
+          const layerById = new Map(docStore.layers.map((l) => [l.id, l]));
           for (const id of selected) {
             const obj = docStore.getObject(id);
             const layerId = docStore.getObjectLayerId(id);
             if (obj && layerId) {
-              const layer = docStore.layers.find((l) => l.id === layerId);
+              const layer = layerById.get(layerId);
               const index = layer?.objects.findIndex((o) => o.id === id) ?? 0;
               targets.push({ layerId, object: obj, index });
             }

@@ -58,19 +58,35 @@ export function BrushSettings() {
           {strokeEnabled && (
             <div className="flex items-center gap-2">
               <input
+                id="stroke-width-range"
                 type="range"
                 min="1"
                 max="50"
                 value={strokeWidth}
-                onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                aria-label="Stroke width"
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw.trim() === "") return;
+                  const n = Number(raw);
+                  if (!Number.isFinite(n)) return;
+                  setStrokeWidth(n);
+                }}
                 className="flex-1"
               />
               <input
+                id="stroke-width-number"
                 type="number"
                 min="1"
                 max="100"
                 value={strokeWidth}
-                onChange={(e) => setStrokeWidth(Number(e.target.value))}
+                aria-label="Stroke width in pixels"
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw.trim() === "") return;
+                  const n = Number(raw);
+                  if (!Number.isFinite(n)) return;
+                  setStrokeWidth(n);
+                }}
                 className="w-14 px-2 py-1 text-xs border border-gray-300 rounded"
               />
             </div>

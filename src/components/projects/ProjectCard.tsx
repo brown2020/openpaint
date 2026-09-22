@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Image from "next/image";
 import type { ProjectDocument } from "@/lib/firebase/firestore";
 
@@ -52,98 +52,97 @@ export function ProjectCard({
     }
   };
 
-  const formatDate = (timestamp: { toDate?: () => Date } | null) => {
+  const modifiedLabel = useMemo(() => {
+    const timestamp = project.modifiedAt as { toDate?: () => Date } | null;
     if (!timestamp || !timestamp.toDate) return "Unknown";
     const date = timestamp.toDate();
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+  }, [project.modifiedAt]);
 
   return (
-    <div
-      className="group relative bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => !isRenaming && onSelect(project.id)}
-    >
-      {/* Thumbnail */}
-      <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
-        {project.thumbnailUrl ? (
-          <Image
-            src={project.thumbnailUrl}
-            alt={project.name}
-            fill
-            sizes="(max-width: 768px) 50vw, 33vw"
-            className="object-contain"
-          />
-        ) : (
-          <div className="text-gray-400">
-            <svg
-              className="w-12 h-12"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+    <div className="group relative bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+      {isRenaming ? (
+        <div className="p-3">
+          <div className="relative aspect-video bg-gray-100 mb-3 flex items-center justify-center">
+            {project.thumbnailUrl ? (
+              <Image
+                src={project.thumbnailUrl}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 50vw, 33vw"
+                className="object-contain"
               />
-            </svg>
+            ) : (
+              <div className="text-gray-400" aria-hidden>
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="p-3">
-        {isRenaming ? (
           <input
             type="text"
+            aria-label="Project name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onBlur={handleRename}
             onKeyDown={handleKeyDown}
-            onClick={(e) => e.stopPropagation()}
             className="w-full px-2 py-1 text-sm border border-blue-500 rounded focus:outline-none"
             autoFocus
           />
-        ) : (
-          <h3 className="font-medium text-gray-900 truncate">{project.name}</h3>
-        )}
-        <p className="text-xs text-gray-500 mt-1">
-          {formatDate(project.modifiedAt)}
-        </p>
-        <p className="text-xs text-gray-400">
-          {project.canvasSize.width} x {project.canvasSize.height}
-        </p>
-      </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="w-full text-left"
+          onClick={() => onSelect(project.id)}
+          aria-label={`Open project ${project.name}`}
+        >
+          <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
+            {project.thumbnailUrl ? (
+              <Image
+                src={project.thumbnailUrl}
+                alt=""
+                fill
+                sizes="(max-width: 768px) 50vw, 33vw"
+                className="object-contain"
+              />
+            ) : (
+              <div className="text-gray-400" aria-hidden>
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <div className="p-3">
+            <h3 className="font-medium text-gray-900 truncate">{project.name}</h3>
+            <p className="text-xs text-gray-500 mt-1">{modifiedLabel}</p>
+            <p className="text-xs text-gray-400">
+              {project.canvasSize.width} x {project.canvasSize.height}
+            </p>
+          </div>
+        </button>
+      )}
 
-      {/* Menu button */}
       <div ref={menuRef} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowMenu(!showMenu);
-          }}
+          type="button"
+          aria-label="Project menu"
+          onClick={() => setShowMenu(!showMenu)}
           className="p-1 bg-white rounded-full shadow hover:bg-gray-100"
         >
-          <svg
-            className="w-5 h-5 text-gray-600"
-            fill="currentColor"
-            viewBox="0 0 20 20"
-          >
+          <svg className="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20" aria-hidden>
             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
           </svg>
         </button>
 
-        {/* Dropdown menu */}
         {showMenu && (
           <div className="absolute right-0 mt-1 w-32 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              type="button"
+              onClick={() => {
                 setIsRenaming(true);
                 setShowMenu(false);
               }}
@@ -152,8 +151,8 @@ export function ProjectCard({
               Rename
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation();
+              type="button"
+              onClick={() => {
                 onDelete(project.id);
                 setShowMenu(false);
               }}
