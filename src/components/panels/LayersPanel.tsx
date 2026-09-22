@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { computeObjectReorder } from "@/lib/vector/layerObjectReorder";
 import { useDocumentStore } from "@/store/documentStore";
+import type { VectorLayer } from "@/types/vector";
 import { ObjectRow, EyeIcon, LockIcon } from "./LayerObjectRow";
 
 /**
