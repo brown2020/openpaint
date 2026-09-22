@@ -42,7 +42,7 @@ export function ForgotPasswordForm({
     <p className="text-center text-sm text-gray-600">
       <Link
         href="/login"
-        className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+        className="text-blue-800 hover:text-blue-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
       >
         Back to Sign In
       </Link>
@@ -52,7 +52,7 @@ export function ForgotPasswordForm({
       <button
         type="button"
         onClick={onBackToLogin}
-        className="text-blue-500 hover:text-blue-600 font-medium"
+        className="text-blue-800 hover:text-blue-900 font-medium"
       >
         Back to Sign In
       </button>
@@ -66,8 +66,8 @@ export function ForgotPasswordForm({
           role="status"
           className="p-4 bg-green-50 border border-green-200 rounded-lg"
         >
-          <h3 className="font-medium text-green-800 mb-1">Check your email</h3>
-          <p className="text-sm text-green-700">
+          <h3 className="font-medium text-green-900 mb-1">Check your email</h3>
+          <p className="text-sm text-green-900">
             We sent a password reset link to <strong>{email}</strong>. Click the
             link in the email to reset your password.
           </p>
@@ -78,7 +78,7 @@ export function ForgotPasswordForm({
           <button
             type="button"
             onClick={() => setEmailSent(false)}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-800 hover:text-blue-900 font-medium"
           >
             Try again
           </button>
@@ -94,13 +94,13 @@ export function ForgotPasswordForm({
       {localError && (
         <div
           role="alert"
-          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm"
         >
           {localError}
         </div>
       )}
 
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-sm">
         Enter your email address and we&apos;ll send you a link to reset your
         password.
       </div>
@@ -128,7 +128,7 @@ export function ForgotPasswordForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-2 px-4 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {loading && <LoadingSpinner size="sm" />}
         Send Reset Link
@@ -139,7 +139,7 @@ export function ForgotPasswordForm({
           Remember your password?{" "}
           <Link
             href="/login"
-            className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="text-blue-800 hover:text-blue-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
             Back to Sign In
           </Link>
@@ -150,7 +150,7 @@ export function ForgotPasswordForm({
           <button
             type="button"
             onClick={onBackToLogin}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-800 hover:text-blue-900 font-medium"
           >
             Back to Sign In
           </button>

@@ -68,7 +68,7 @@ export function UserMenu() {
             className="w-8 h-8 rounded-full"
           />
         ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-medium">
+          <div className="w-8 h-8 rounded-full bg-blue-800 text-white flex items-center justify-center text-sm font-medium">
             {initials}
           </div>
         )}

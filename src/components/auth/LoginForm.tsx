@@ -63,7 +63,7 @@ export function LoginForm({
       {localError && (
         <div
           role="alert"
-          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm"
         >
           {localError}
         </div>
@@ -103,7 +103,7 @@ export function LoginForm({
         {useLinks ? (
           <Link
             href="/forgot-password"
-            className="text-sm text-blue-500 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="text-sm text-blue-800 hover:text-blue-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
             Forgot password?
           </Link>
@@ -111,7 +111,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={onSwitchToForgotPassword}
-            className="text-sm text-blue-500 hover:text-blue-600"
+            className="text-sm text-blue-800 hover:text-blue-900"
           >
             Forgot password?
           </button>
@@ -121,7 +121,7 @@ export function LoginForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-2 px-4 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {loading && <LoadingSpinner size="sm" />}
         Sign In
@@ -132,7 +132,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={onSwitchToEmailLink}
-            className="text-sm text-blue-500 hover:text-blue-600"
+            className="text-sm text-blue-800 hover:text-blue-900"
           >
             Sign in with email link instead
           </button>
@@ -142,7 +142,7 @@ export function LoginForm({
             Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+              className="text-blue-800 hover:text-blue-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
             >
               Sign up
             </Link>
@@ -153,7 +153,7 @@ export function LoginForm({
             <button
               type="button"
               onClick={onSwitchToSignUp}
-              className="text-blue-500 hover:text-blue-600 font-medium"
+              className="text-blue-800 hover:text-blue-900 font-medium"
             >
               Sign up
             </button>

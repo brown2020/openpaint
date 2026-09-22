@@ -69,7 +69,7 @@ export function SignUpForm({
       {localError && (
         <div
           role="alert"
-          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm"
+          className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm"
         >
           {localError}
         </div>
@@ -120,7 +120,7 @@ export function SignUpForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-2 px-4 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {loading && <LoadingSpinner size="sm" />}
         Create Account
@@ -131,7 +131,7 @@ export function SignUpForm({
           Already have an account?{" "}
           <Link
             href="/login"
-            className="text-blue-500 hover:text-blue-600 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+            className="text-blue-800 hover:text-blue-900 font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
             Sign in
           </Link>
@@ -142,7 +142,7 @@ export function SignUpForm({
           <button
             type="button"
             onClick={onSwitchToLogin}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-800 hover:text-blue-900 font-medium"
           >
             Sign in
           </button>

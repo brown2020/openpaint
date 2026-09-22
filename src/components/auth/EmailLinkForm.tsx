@@ -40,8 +40,8 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
     return (
       <div className="space-y-4">
         <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-          <h3 className="font-medium text-green-800 mb-1">Check your email</h3>
-          <p className="text-sm text-green-700">
+          <h3 className="font-medium text-green-900 mb-1">Check your email</h3>
+          <p className="text-sm text-green-900">
             We sent a sign-in link to <strong>{email}</strong>. Click the link
             in the email to sign in.
           </p>
@@ -52,7 +52,7 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
           <button
             type="button"
             onClick={() => setEmailSent(false)}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-800 hover:text-blue-900 font-medium"
           >
             Try again
           </button>
@@ -64,12 +64,12 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {localError && (
-        <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+        <div role="alert" className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
           {localError}
         </div>
       )}
 
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 text-sm">
         Sign in without a password. We&apos;ll send you a magic link to your
         email.
       </div>
@@ -95,7 +95,7 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-2 px-4 bg-blue-800 text-white rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {loading && <LoadingSpinner size="sm" />}
         Send Sign-In Link
@@ -107,7 +107,7 @@ export function EmailLinkForm({ onSwitchToPassword }: EmailLinkFormProps) {
           <button
             type="button"
             onClick={onSwitchToPassword}
-            className="text-blue-500 hover:text-blue-600 font-medium"
+            className="text-blue-800 hover:text-blue-900 font-medium"
           >
             Sign in with password
           </button>
