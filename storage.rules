@@ -12,7 +12,7 @@ service firebase.storage {
 
       allow create, update: if isPathOwner(userId)
         && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/png');
+        && request.resource.contentType == 'image/png';
 
       allow delete: if isPathOwner(userId);
     }

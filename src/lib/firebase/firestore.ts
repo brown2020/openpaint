@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   Timestamp,
 } from "firebase/firestore";
+import { normalizeCanvasSize } from "@/lib/vector/canvasSize";
 import { db } from "./config";
 
 /**
@@ -89,7 +90,7 @@ export async function createProject(
     name: data.name,
     createdAt: serverTimestamp(),
     modifiedAt: serverTimestamp(),
-    canvasSize: data.canvasSize,
+    canvasSize: normalizeCanvasSize(data.canvasSize),
     thumbnailUrl: null,
     layers: data.layers,
     activeLayerId: data.activeLayerId,

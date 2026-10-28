@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
+import { normalizeCanvasSize } from "@/lib/vector/canvasSize";
 import type { Size } from "@/types";
 
 interface NewProjectDialogProps {
@@ -42,9 +43,11 @@ export function NewProjectDialog({
       return;
     }
 
-    const size = isCustom
-      ? { width: customWidth, height: customHeight }
-      : PRESET_SIZES[selectedPreset].size;
+    const size = normalizeCanvasSize(
+      isCustom
+        ? { width: customWidth, height: customHeight }
+        : PRESET_SIZES[selectedPreset].size,
+    );
 
     if (size.width < 1 || size.height < 1) {
       setError("Canvas size must be at least 1x1.");

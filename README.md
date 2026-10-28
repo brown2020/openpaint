@@ -53,7 +53,7 @@ src/
 firestore.rules
 storage.rules
 firebase.json
-cors.json                    # Storage CORS for localhost + production origin
+cors.json                    # Storage CORS (GET/POST/OPTIONS, all origins)
 .github/workflows/ci.yml
 ```
 
@@ -103,11 +103,18 @@ CI also accepts an optional `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID` secret; it is 
 
 1. Create a Firebase project and a Web app; copy the config into `.env.local`.
 2. Enable Auth providers you need: Google, Email/Password, and Email link if desired.
-3. Deploy rules from this repo:
+3. Deploy rules and indexes from this repo (not applied by the Next.js host):
    - `firestore.rules` — `projects/{projectId}` owned by `userId`
-   - `storage.rules` — `users/{userId}/projects/{projectId}/**` (PNG under 10MB)
-4. Apply Storage CORS from `cors.json` for `http://localhost:3000` and `https://openpaint.vercel.app` as needed.
-5. `firebase.json` points at those rules and the Storage bucket name used by the project.
+   - `firestore.indexes.json` — composite index on `projects` (`userId` ASC, `modifiedAt` DESC)
+   - `storage.rules` — `users/{userId}/projects/{projectId}/**`, exact `image/png`, under 10MB
+   ```bash
+   firebase deploy --only firestore:rules,firestore:indexes,storage
+   ```
+4. Apply Storage CORS from `cors.json` with `gsutil` (Firebase CLI does not deploy it). `origin` is `*` so preview hosts can upload and read pixels back into the canvas; security rules still require the owning user.
+   ```bash
+   gsutil cors set cors.json gs://YOUR_BUCKET
+   ```
+5. `firebase.json` points at the rules files and the Storage bucket name used by the project.
 
 ### Run locally
 
