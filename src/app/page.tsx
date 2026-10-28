@@ -93,8 +93,8 @@ export default function Home() {
           user
             ? "Save to cloud (Ctrl+S)"
             : isFirebaseConfigured
-              ? "Save locally (Ctrl+S)"
-              : "Save (Ctrl+S)"
+              ? "Save locally as JSON (Ctrl+S)"
+              : "Save as JSON (Ctrl+S)"
         }
       />
       </header>

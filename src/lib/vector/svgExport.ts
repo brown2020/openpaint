@@ -1,3 +1,4 @@
+import { downloadBlob } from "@/lib/download/downloadBlob";
 import {
   svgFontStyle,
   svgFontWeight,
@@ -409,10 +410,5 @@ export function exportDocumentToSvg(
 /** Trigger download of an SVG string in the browser */
 export function downloadSvgFile(svg: string, filename: string): void {
   const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename.endsWith(".svg") ? filename : `${filename}.svg`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename.endsWith(".svg") ? filename : `${filename}.svg`);
 }

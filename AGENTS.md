@@ -62,7 +62,7 @@ Root config: `next.config.ts`, `eslint.config.mjs`, `tsconfig.json`, `firebase.j
 
 **Rendering:** `VectorCanvas` stacks three canvases — main (scene), overlay (selection handles + previews), event (pointer capture). `renderScene()` in `src/lib/vector/renderer.ts` walks layers and draws objects. Selection UI is drawn in `renderSelectionOverlay()`.
 
-**Persistence:** Cloud saves write `vectorLayers` JSON to Firestore **and** re-render each layer to PNG in Storage (thumbnails + backward-compatible previews). Local save uses `localStorage` key `openpaint-project` at version `2.0.0` JSON.
+**Persistence:** Cloud saves write `vectorLayers` JSON to Firestore **and** re-render each layer to PNG in Storage (thumbnails + backward-compatible previews). Local save writes `localStorage` key `openpaint-project` at version `2.0.0` JSON and downloads that same file.
 
 ## Key features that exist today
 

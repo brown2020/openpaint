@@ -10,6 +10,13 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useProjects } from "@/hooks/useProjects";
 import { useAutoSave } from "@/hooks/useAutoSave";
 import { renderScene } from "@/lib/vector/renderer";
+import { downloadBlob } from "@/lib/download/downloadBlob";
+import {
+  LOCAL_PROJECT_STORAGE_KEY,
+  buildLocalProjectSnapshot,
+  localProjectFilename,
+  serializeLocalProject,
+} from "@/lib/projects/localProjectFile";
 import { downloadSvgFile, exportDocumentToSvg } from "@/lib/vector/svgExport";
 import {
   getGuestBannerDismissed,
@@ -62,7 +69,7 @@ export function useHomeEditor() {
     if (!authInitialized || user) return;
 
     try {
-      const raw = localStorage.getItem("openpaint-project");
+      const raw = localStorage.getItem(LOCAL_PROJECT_STORAGE_KEY);
       if (!raw) return;
       const data = JSON.parse(raw) as {
         version?: string;
@@ -128,21 +135,24 @@ export function useHomeEditor() {
     if (user && currentProjectId) {
       await saveProject();
     } else {
+      const snapshot = buildLocalProjectSnapshot({
+        name: currentProjectName || "Untitled",
+        canvasSize,
+        layers: useDocumentStore.getState().layers,
+      });
+      const json = serializeLocalProject(snapshot);
       try {
-        const docLayers = useDocumentStore.getState().layers;
-        const projectData = {
-          version: "2.0.0",
-          name: currentProjectName || "Untitled",
-          createdAt: new Date().toISOString(),
-          modifiedAt: new Date().toISOString(),
-          canvasSize,
-          layers: docLayers,
-        };
-
-        localStorage.setItem("openpaint-project", JSON.stringify(projectData));
-        alert("Project saved locally!");
+        localStorage.setItem(LOCAL_PROJECT_STORAGE_KEY, json);
       } catch (error) {
-        console.error("Failed to save project:", error);
+        console.error("Failed to write local project backup:", error);
+      }
+      try {
+        downloadBlob(
+          new Blob([json], { type: "application/json" }),
+          localProjectFilename(snapshot.name),
+        );
+      } catch (error) {
+        console.error("Failed to download project:", error);
         alert("Failed to save project");
       }
     }
