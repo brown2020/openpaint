@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import { securityHeaderRoutes } from "./src/lib/security/securityHeaders";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return securityHeaderRoutes();
+  },
   images: {
     remotePatterns: [
       {

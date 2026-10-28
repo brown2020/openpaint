@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import Image from "next/image";
 import type { ProjectDocument } from "@/lib/firebase/firestore";
 
 interface ProjectCardProps {
@@ -66,12 +65,12 @@ export function ProjectCard({
         <div className="p-3">
           <div className="relative aspect-video bg-gray-100 mb-3 flex items-center justify-center">
             {project.thumbnailUrl ? (
-              <Image
+              // Plain img keeps the Firebase download token off the Next image optimizer.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={project.thumbnailUrl}
                 alt=""
-                fill
-                sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             ) : (
               <div className="text-gray-400" aria-hidden>
@@ -101,12 +100,12 @@ export function ProjectCard({
         >
           <div className="relative aspect-video bg-gray-100 flex items-center justify-center">
             {project.thumbnailUrl ? (
-              <Image
+              // Plain img keeps the Firebase download token off the Next image optimizer.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={project.thumbnailUrl}
                 alt=""
-                fill
-                sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-contain"
+                className="absolute inset-0 h-full w-full object-contain"
               />
             ) : (
               <div className="text-gray-400" aria-hidden>

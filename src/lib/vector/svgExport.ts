@@ -1,3 +1,12 @@
+import {
+  svgFontStyle,
+  svgFontWeight,
+  svgImageHref,
+  svgLineCap,
+  svgLineJoin,
+  svgNumber,
+  svgOpacity,
+} from "@/lib/vector/svgSafe";
 import type {
   Fill,
   GradientStop,
@@ -37,21 +46,22 @@ export function escapeXml(text: string): string {
 /** Build SVG path `d` from path segments (matches canvas `buildPath` order) */
 export function pathSegmentsToD(segments: PathSegment[]): string {
   const parts: string[] = [];
+  const n = (value: unknown) => svgNumber(value);
   for (const seg of segments) {
     switch (seg.type) {
       case "M":
-        parts.push(`M ${seg.x} ${seg.y}`);
+        parts.push(`M ${n(seg.x)} ${n(seg.y)}`);
         break;
       case "L":
-        parts.push(`L ${seg.x} ${seg.y}`);
+        parts.push(`L ${n(seg.x)} ${n(seg.y)}`);
         break;
       case "C":
         parts.push(
-          `C ${seg.cp1x} ${seg.cp1y} ${seg.cp2x} ${seg.cp2y} ${seg.x} ${seg.y}`,
+          `C ${n(seg.cp1x)} ${n(seg.cp1y)} ${n(seg.cp2x)} ${n(seg.cp2y)} ${n(seg.x)} ${n(seg.y)}`,
         );
         break;
       case "Q":
-        parts.push(`Q ${seg.cpx} ${seg.cpy} ${seg.x} ${seg.y}`);
+        parts.push(`Q ${n(seg.cpx)} ${n(seg.cpy)} ${n(seg.x)} ${n(seg.y)}`);
         break;
       case "Z":
         parts.push("Z");
@@ -67,7 +77,9 @@ export function clampCornerRadii(
   height: number,
   radii: [number, number, number, number],
 ): [number, number, number, number] {
-  const [tl, tr, br, bl] = radii.map((r) => Math.max(0, r)) as [
+  const safeWidth = Math.max(0, svgNumber(width));
+  const safeHeight = Math.max(0, svgNumber(height));
+  const [tl, tr, br, bl] = radii.map((r) => Math.max(0, svgNumber(r))) as [
     number,
     number,
     number,
@@ -76,10 +88,10 @@ export function clampCornerRadii(
 
   const scale = Math.min(
     1,
-    tl + tr > width && width > 0 ? width / (tl + tr) : 1,
-    bl + br > width && width > 0 ? width / (bl + br) : 1,
-    tl + bl > height && height > 0 ? height / (tl + bl) : 1,
-    tr + br > height && height > 0 ? height / (tr + br) : 1,
+    tl + tr > safeWidth && safeWidth > 0 ? safeWidth / (tl + tr) : 1,
+    bl + br > safeWidth && safeWidth > 0 ? safeWidth / (bl + br) : 1,
+    tl + bl > safeHeight && safeHeight > 0 ? safeHeight / (tl + bl) : 1,
+    tr + br > safeHeight && safeHeight > 0 ? safeHeight / (tr + br) : 1,
   );
 
   return [tl * scale, tr * scale, br * scale, bl * scale];
@@ -92,8 +104,8 @@ export function roundedRectPathD(
   radii: [number, number, number, number],
 ): string {
   const [tl, tr, br, bl] = clampCornerRadii(width, height, radii);
-  const w = width;
-  const h = height;
+  const w = Math.max(0, svgNumber(width));
+  const h = Math.max(0, svgNumber(height));
 
   const parts: string[] = [`M ${tl} 0`, `H ${w - tr}`];
 
@@ -132,35 +144,42 @@ export function roundedRectPathD(
 }
 
 function transformToSvg(t: Transform2D): string {
-  const parts: string[] = [`translate(${t.x},${t.y})`];
-  if (t.rotation !== 0) {
-    parts.push(`rotate(${t.rotation})`);
+  const x = svgNumber(t.x);
+  const y = svgNumber(t.y);
+  const rotation = svgNumber(t.rotation);
+  const scaleX = svgNumber(t.scaleX, 1);
+  const scaleY = svgNumber(t.scaleY, 1);
+  const parts: string[] = [`translate(${x},${y})`];
+  if (rotation !== 0) {
+    parts.push(`rotate(${rotation})`);
   }
-  if (t.scaleX !== 1 || t.scaleY !== 1) {
-    parts.push(`scale(${t.scaleX},${t.scaleY})`);
+  if (scaleX !== 1 || scaleY !== 1) {
+    parts.push(`scale(${scaleX},${scaleY})`);
   }
   return parts.join(" ");
 }
 
 function solidFillAttrs(fill: Fill): string {
   if (fill.type !== "solid") return "";
-  const opacity = fill.opacity < 1 ? ` fill-opacity="${fill.opacity}"` : "";
-  return ` fill="${escapeXml(fill.color)}"${opacity}`;
+  const opacity = svgOpacity(fill.opacity);
+  const opacityAttr = opacity < 1 ? ` fill-opacity="${opacity}"` : "";
+  return ` fill="${escapeXml(String(fill.color ?? ""))}"${opacityAttr}`;
 }
 
 function strokeAttrs(stroke: StrokeStyle): string {
-  const opacity =
-    stroke.opacity < 1 ? ` stroke-opacity="${stroke.opacity}"` : "";
+  const opacity = svgOpacity(stroke.opacity);
+  const opacityAttr = opacity < 1 ? ` stroke-opacity="${opacity}"` : "";
+  const dashes = Array.isArray(stroke.dashArray)
+    ? stroke.dashArray.map((value) => svgNumber(value))
+    : [];
   const dash =
-    stroke.dashArray.length > 0
-      ? ` stroke-dasharray="${stroke.dashArray.join(" ")}"`
-      : "";
+    dashes.length > 0 ? ` stroke-dasharray="${dashes.join(" ")}"` : "";
   return (
-    ` stroke="${escapeXml(stroke.color)}"` +
-    ` stroke-width="${stroke.width}"` +
-    ` stroke-linecap="${stroke.lineCap}"` +
-    ` stroke-linejoin="${stroke.lineJoin}"` +
-    opacity +
+    ` stroke="${escapeXml(String(stroke.color ?? ""))}"` +
+    ` stroke-width="${svgNumber(stroke.width)}"` +
+    ` stroke-linecap="${svgLineCap(stroke.lineCap)}"` +
+    ` stroke-linejoin="${svgLineJoin(stroke.lineJoin)}"` +
+    opacityAttr +
     dash
   );
 }
@@ -169,22 +188,22 @@ function gradientStopsMarkup(stops: GradientStop[]): string {
   return stops
     .map(
       (stop) =>
-        `<stop offset="${stop.offset}" stop-color="${escapeXml(stop.color)}" stop-opacity="${stop.opacity}"/>`,
+        `<stop offset="${svgNumber(stop.offset)}" stop-color="${escapeXml(String(stop.color ?? ""))}" stop-opacity="${svgOpacity(stop.opacity)}"/>`,
     )
     .join("");
 }
 
 function linearGradientDef(id: string, fill: LinearGradientFill): string {
   return (
-    `<linearGradient id="${id}" x1="${fill.startX}" y1="${fill.startY}" ` +
-    `x2="${fill.endX}" y2="${fill.endY}" gradientUnits="userSpaceOnUse">` +
+    `<linearGradient id="${id}" x1="${svgNumber(fill.startX)}" y1="${svgNumber(fill.startY)}" ` +
+    `x2="${svgNumber(fill.endX)}" y2="${svgNumber(fill.endY)}" gradientUnits="userSpaceOnUse">` +
     `${gradientStopsMarkup(fill.stops)}</linearGradient>`
   );
 }
 
 function radialGradientDef(id: string, fill: RadialGradientFill): string {
   return (
-    `<radialGradient id="${id}" cx="${fill.centerX}" cy="${fill.centerY}" r="${fill.radius}" ` +
+    `<radialGradient id="${id}" cx="${svgNumber(fill.centerX)}" cy="${svgNumber(fill.centerY)}" r="${svgNumber(fill.radius)}" ` +
     `gradientUnits="userSpaceOnUse">` +
     `${gradientStopsMarkup(fill.stops)}</radialGradient>`
   );
@@ -237,18 +256,21 @@ function paintAttrs(
   return attrs;
 }
 
-function opacityAttr(opacity: number): string {
-  return opacity < 1 ? ` opacity="${opacity}"` : "";
+function opacityAttr(opacity: unknown): string {
+  const value = svgOpacity(opacity);
+  return value < 1 ? ` opacity="${value}"` : "";
 }
 
 function polygonPoints(sides: number, radius: number): string {
-  const angleStep = (Math.PI * 2) / sides;
+  const count = Math.max(3, Math.min(64, Math.round(svgNumber(sides, 6))));
+  const safeRadius = svgNumber(radius);
+  const angleStep = (Math.PI * 2) / count;
   const startAngle = -Math.PI / 2;
   const pts: string[] = [];
-  for (let i = 0; i < sides; i++) {
+  for (let i = 0; i < count; i++) {
     const angle = startAngle + i * angleStep;
-    const x = radius * Math.cos(angle);
-    const y = radius * Math.sin(angle);
+    const x = safeRadius * Math.cos(angle);
+    const y = safeRadius * Math.sin(angle);
     pts.push(`${x},${y}`);
   }
   return pts.join(" ");
@@ -270,24 +292,32 @@ function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
   switch (obj.type) {
     case "rectangle": {
       const rect = obj as RectangleObject;
-      const [tl, tr, br, bl] = rect.cornerRadius;
+      const rawRadii = Array.isArray(rect.cornerRadius) ? rect.cornerRadius : [];
+      const [tl, tr, br, bl] = [
+        svgNumber(rawRadii[0]),
+        svgNumber(rawRadii[1]),
+        svgNumber(rawRadii[2]),
+        svgNumber(rawRadii[3]),
+      ] as [number, number, number, number];
       const hasRadius = tl > 0 || tr > 0 || br > 0 || bl > 0;
       if (hasRadius) {
         const d = roundedRectPathD(rect.width, rect.height, [tl, tr, br, bl]);
         const fillRule = rect.fill ? ' fill-rule="evenodd"' : "";
         return `<path d="${d}"${transform}${op}${paint}${fillRule} />`;
       }
-      return `<rect x="0" y="0" width="${rect.width}" height="${rect.height}"${transform}${op}${paint} />`;
+      return `<rect x="0" y="0" width="${svgNumber(rect.width)}" height="${svgNumber(rect.height)}"${transform}${op}${paint} />`;
     }
     case "ellipse":
-      return `<ellipse cx="0" cy="0" rx="${obj.radiusX}" ry="${obj.radiusY}"${transform}${op}${paint} />`;
+      return `<ellipse cx="0" cy="0" rx="${svgNumber(obj.radiusX)}" ry="${svgNumber(obj.radiusY)}"${transform}${op}${paint} />`;
     case "line": {
       const linePaint = obj.stroke ? strokeAttrs(obj.stroke) : "";
-      return `<line x1="0" y1="0" x2="${obj.endX}" y2="${obj.endY}"${transform}${op}${linePaint} />`;
+      return `<line x1="0" y1="0" x2="${svgNumber(obj.endX)}" y2="${svgNumber(obj.endY)}"${transform}${op}${linePaint} />`;
     }
     case "path": {
       const pathObj = obj as PathObject;
-      const d = pathSegmentsToD(pathObj.segments);
+      const d = pathSegmentsToD(
+        Array.isArray(pathObj.segments) ? pathObj.segments : [],
+      );
       const fillRule = pathObj.fill ? ' fill-rule="nonzero"' : "";
       return `<path d="${d}"${transform}${op}${paint}${fillRule} />`;
     }
@@ -300,9 +330,9 @@ function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
       const text = obj as TextObject;
       const anchor = textAnchor(text.textAlign);
       let attrs =
-        `<text x="0" y="0" font-family="${escapeXml(text.fontFamily)}"` +
-        ` font-size="${text.fontSize}" font-weight="${text.fontWeight}"` +
-        ` font-style="${text.fontStyle}" text-anchor="${anchor}"` +
+        `<text x="0" y="0" font-family="${escapeXml(String(text.fontFamily ?? ""))}"` +
+        ` font-size="${svgNumber(text.fontSize, 16)}" font-weight="${svgFontWeight(text.fontWeight)}"` +
+        ` font-style="${svgFontStyle(text.fontStyle)}" text-anchor="${anchor}"` +
         ` dominant-baseline="hanging"${transform}${op}`;
       if (text.fill) {
         attrs += ctx.fillAttrs(text.fill);
@@ -310,10 +340,11 @@ function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
       if (text.stroke) {
         attrs += strokeAttrs(text.stroke);
       }
-      return `${attrs}>${escapeXml(text.content)}</text>`;
+      return `${attrs}>${escapeXml(String(text.content ?? ""))}</text>`;
     }
     case "group": {
-      const inner = obj.children
+      const children = Array.isArray(obj.children) ? obj.children : [];
+      const inner = children
         .map((child) => objectToSvg(ctx, child))
         .join("\n");
       return `<g${transform}${op}>\n${inner}\n</g>`;
@@ -321,8 +352,8 @@ function objectToSvg(ctx: SvgExportContext, obj: VectorObject): string {
     case "image": {
       const image = obj as ImageObject;
       return (
-        `<image x="0" y="0" width="${image.width}" height="${image.height}"` +
-        ` href="${escapeXml(image.src)}" preserveAspectRatio="none"${transform}${op} />`
+        `<image x="0" y="0" width="${svgNumber(image.width)}" height="${svgNumber(image.height)}"` +
+        ` href="${escapeXml(svgImageHref(image.src))}" preserveAspectRatio="none"${transform}${op} />`
       );
     }
     default:
@@ -343,7 +374,7 @@ export function exportDocumentToSvg(
 
   if (backgroundColor) {
     body.push(
-      `<rect width="${width}" height="${height}" fill="${escapeXml(backgroundColor)}" />`,
+      `<rect width="${svgNumber(width)}" height="${svgNumber(height)}" fill="${escapeXml(String(backgroundColor))}" />`,
     );
   }
 
@@ -351,22 +382,24 @@ export function exportDocumentToSvg(
     if (!layer.visible) continue;
 
     const layerParts: string[] = [];
-    for (const obj of layer.objects) {
+    const objects = Array.isArray(layer.objects) ? layer.objects : [];
+    for (const obj of objects) {
       const svg = objectToSvg(ctx, obj);
       if (svg) layerParts.push(svg);
     }
 
     if (layerParts.length === 0) continue;
 
+    const layerOpacityValue = svgOpacity(layer.opacity);
     const layerOpacity =
-      layer.opacity < 1 ? ` opacity="${layer.opacity}"` : "";
+      layerOpacityValue < 1 ? ` opacity="${layerOpacityValue}"` : "";
     body.push(`<g${layerOpacity}>\n${layerParts.join("\n")}\n</g>`);
   }
 
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +
-    `viewBox="0 0 ${width} ${height}">\n` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${svgNumber(width)}" height="${svgNumber(height)}" ` +
+    `viewBox="0 0 ${svgNumber(width)} ${svgNumber(height)}">\n` +
     ctx.defsMarkup() +
     `${body.join("\n")}\n` +
     `</svg>`

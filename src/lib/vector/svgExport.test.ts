@@ -5,7 +5,12 @@ import {
   createStroke,
   createTransform,
 } from "@/types/vector";
-import type { LinearGradientFill, RectangleObject, TextObject } from "@/types/vector";
+import type {
+  ImageObject,
+  LinearGradientFill,
+  RectangleObject,
+  TextObject,
+} from "@/types/vector";
 import {
   escapeXml,
   exportDocumentToSvg,
@@ -119,6 +124,63 @@ describe("svgExport", () => {
     expect(svg).toContain("<linearGradient");
     expect(svg).toContain('fill="url(#op-gradient-1)"');
     expect(svg).toContain('stop-color="#ff0000"');
+  });
+
+  it("neutralizes attribute injection from untrusted documents", () => {
+    const rect = {
+      id: "r1",
+      type: "rectangle",
+      name: "Box",
+      transform: createTransform(0, 0),
+      fill: createSolidFill("#ff0000", 1),
+      stroke: {
+        ...createStroke("#000000", 2),
+        lineCap: 'round" onload="alert(1)',
+        lineJoin: "bevel</stroke><script>alert(1)</script>",
+        width: '2"/><script>alert(1)</script><rect ',
+      },
+      opacity: '0.5" onload="alert(1)',
+      visible: true,
+      locked: false,
+      width: '10"/><script>alert(1)</script>',
+      height: 20,
+      cornerRadius: [0, 0, 0, 0],
+    } as unknown as RectangleObject;
+
+    const layer = createLayer("layer-1", "Layer 1");
+    layer.objects = [rect];
+
+    const svg = exportDocumentToSvg([layer], { width: 100, height: 100 });
+
+    expect(svg).not.toContain("<script");
+    expect(svg).not.toContain("onload");
+    expect(svg).toContain('stroke-linecap="butt"');
+    expect(svg).toContain('stroke-linejoin="miter"');
+    expect(svg).toContain('width="0"');
+  });
+
+  it("drops scriptable image hrefs", () => {
+    const image = {
+      id: "img",
+      type: "image",
+      name: "Raster",
+      transform: createTransform(0, 0),
+      fill: null,
+      stroke: null,
+      opacity: 1,
+      visible: true,
+      locked: true,
+      width: 10,
+      height: 10,
+      src: "javascript:alert(1)",
+    } as ImageObject;
+
+    const layer = createLayer("layer-1", "Layer 1");
+    layer.objects = [image];
+    const svg = exportDocumentToSvg([layer], { width: 20, height: 20 });
+
+    expect(svg).not.toContain("javascript:");
+    expect(svg).toContain('href=""');
   });
 
   it("skips hidden layers and objects", () => {
