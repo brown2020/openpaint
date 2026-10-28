@@ -12,9 +12,12 @@ import type {
   TextObject,
   GroupObject,
   ImageObject,
-  BoundingBox,
-  Point2D,
 } from "@/types/vector";
+import { nonNegativeRadius } from "@/lib/vector/numbers";
+import {
+  localSelectionHandles,
+  selectionLocalBounds,
+} from "@/lib/vector/selectionHandles";
 
 /** Dispatched when a raster image finishes decoding (legacy imports) */
 export const OPENPAINT_IMAGE_LOADED = "openpaint-image-loaded";
@@ -175,7 +178,15 @@ function renderEllipse(
   obj: EllipseObject,
 ): void {
   ctx.beginPath();
-  ctx.ellipse(0, 0, obj.radiusX, obj.radiusY, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    0,
+    0,
+    nonNegativeRadius(obj.radiusX),
+    nonNegativeRadius(obj.radiusY),
+    0,
+    0,
+    Math.PI * 2,
+  );
 
   applyFill(ctx, obj.fill);
   applyStroke(ctx, obj.stroke);
@@ -258,7 +269,7 @@ function renderSelectionForObject(
 
   if (!selectedSet.has(obj.id)) return;
 
-  const bounds = getLocalBoundsForSelection(obj);
+  const bounds = selectionLocalBounds(obj);
 
   ctx.save();
   applyTransform(ctx, obj.transform);
@@ -271,7 +282,7 @@ function renderSelectionForObject(
 
   // Resize handles (8 points)
   const handleSize = 6;
-  const handles = getHandlePositions(bounds);
+  const handles = localSelectionHandles(bounds);
   ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "#2563eb";
   ctx.lineWidth = 1;
@@ -450,82 +461,6 @@ function hexWithOpacity(hex: string, opacity: number): string {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${opacity})`;
-}
-
-/**
- * Get local bounding box for selection overlay
- */
-function getLocalBoundsForSelection(obj: VectorObject): BoundingBox {
-  switch (obj.type) {
-    case "rectangle":
-      return { x: 0, y: 0, width: obj.width, height: obj.height };
-    case "ellipse":
-      return {
-        x: -obj.radiusX,
-        y: -obj.radiusY,
-        width: obj.radiusX * 2,
-        height: obj.radiusY * 2,
-      };
-    case "line":
-      return {
-        x: Math.min(0, obj.endX),
-        y: Math.min(0, obj.endY),
-        width: Math.abs(obj.endX),
-        height: Math.abs(obj.endY),
-      };
-    case "polygon":
-      return {
-        x: -obj.radius,
-        y: -obj.radius,
-        width: obj.radius * 2,
-        height: obj.radius * 2,
-      };
-    case "path": {
-      // Derive from segments
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const seg of obj.segments) {
-        if ("x" in seg && "y" in seg) {
-          minX = Math.min(minX, seg.x);
-          minY = Math.min(minY, seg.y);
-          maxX = Math.max(maxX, seg.x);
-          maxY = Math.max(maxY, seg.y);
-        }
-      }
-      if (!isFinite(minX)) return { x: 0, y: 0, width: 0, height: 0 };
-      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-    }
-    case "text":
-      return {
-        x: 0,
-        y: 0,
-        width: obj.content.length * obj.fontSize * 0.6,
-        height: obj.fontSize * obj.lineHeight,
-      };
-    case "group":
-      return { x: 0, y: 0, width: 0, height: 0 };
-    case "image":
-      return { x: 0, y: 0, width: obj.width, height: obj.height };
-  }
-}
-
-/**
- * Get the 8 selection handle positions for a bounding box
- */
-function getHandlePositions(bounds: BoundingBox): Point2D[] {
-  const { x, y, width, height } = bounds;
-  const cx = x + width / 2;
-  const cy = y + height / 2;
-
-  return [
-    { x, y }, // top-left
-    { x: cx, y }, // top-center
-    { x: x + width, y }, // top-right
-    { x: x + width, y: cy }, // middle-right
-    { x: x + width, y: y + height }, // bottom-right
-    { x: cx, y: y + height }, // bottom-center
-    { x, y: y + height }, // bottom-left
-    { x, y: cy }, // middle-left
-  ];
 }
 
 /**

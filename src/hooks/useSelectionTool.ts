@@ -4,12 +4,16 @@ import { useCallback, useRef, useState } from "react";
 import { useDocumentStore } from "@/store/documentStore";
 import { hitTestLayers } from "@/lib/vector/hitTest";
 import { getWorldBounds, mergeBounds, boundsIntersect } from "@/lib/vector/bounds";
+import {
+  hitTestSelectionHandle,
+  type SelectionHandleId,
+} from "@/lib/vector/selectionHandles";
 import type { Point2D, BoundingBox, VectorObject } from "@/types/vector";
 
 const DRAG_THRESHOLD = 3;
 const HANDLE_HIT_SIZE = 10;
 
-type HandleId = "tl" | "tc" | "tr" | "mr" | "br" | "bc" | "bl" | "ml";
+type HandleId = SelectionHandleId;
 type Mode = "idle" | "pending" | "moving" | "resizing" | "marquee";
 
 interface DragState {
@@ -208,41 +212,16 @@ function extractResizeProps(obj: VectorObject): Record<string, unknown> {
   }
 }
 
-/** Hit-test the 8 selection handles */
+/** Hit-test the same transformed handles the selection overlay draws. */
 function hitTestHandles(
   point: Point2D,
   store: ReturnType<typeof useDocumentStore.getState>,
 ): HandleId | null {
-  const selected = store.getSelectedObjects();
-  if (selected.length === 0) return null;
-
-  const bounds = mergeBounds(selected.map(getWorldBounds));
-  const handles = handlePositions(bounds);
-
-  for (const [id, pos] of handles) {
-    if (
-      Math.abs(point.x - pos.x) <= HANDLE_HIT_SIZE / 2 &&
-      Math.abs(point.y - pos.y) <= HANDLE_HIT_SIZE / 2
-    ) {
-      return id;
-    }
-  }
-  return null;
-}
-
-function handlePositions(b: BoundingBox): [HandleId, Point2D][] {
-  const cx = b.x + b.width / 2;
-  const cy = b.y + b.height / 2;
-  return [
-    ["tl", { x: b.x, y: b.y }],
-    ["tc", { x: cx, y: b.y }],
-    ["tr", { x: b.x + b.width, y: b.y }],
-    ["mr", { x: b.x + b.width, y: cy }],
-    ["br", { x: b.x + b.width, y: b.y + b.height }],
-    ["bc", { x: cx, y: b.y + b.height }],
-    ["bl", { x: b.x, y: b.y + b.height }],
-    ["ml", { x: b.x, y: cy }],
-  ];
+  return hitTestSelectionHandle(
+    point,
+    store.getSelectedObjects(),
+    HANDLE_HIT_SIZE,
+  );
 }
 
 /** Apply resize based on handle drag */

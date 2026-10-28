@@ -227,6 +227,7 @@ export type HistoryOperation =
       after: Record<string, unknown>;
     }
   | { type: "reorder-object"; layerId: string; fromIndex: number; toIndex: number }
+  | { type: "reorder-layer"; fromIndex: number; toIndex: number }
   | { type: "add-layer"; layer: VectorLayer; index: number }
   | { type: "remove-layer"; layer: VectorLayer; index: number }
   | {

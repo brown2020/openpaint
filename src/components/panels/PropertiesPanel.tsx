@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import { commitObjectFieldHistory } from "@/lib/vector/layerEdits";
+import { clampNumber } from "@/lib/vector/numbers";
 import { normalizeTextAlign, textStyleFromOptions } from "@/lib/vector/textObject";
 import { useDocumentStore } from "@/store/documentStore";
 import { useCanvasStore } from "@/store/canvasStore";
@@ -62,6 +64,22 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
   const updateObject = useDocumentStore((s) => s.updateObject);
   const pushHistory = useDocumentStore((s) => s.pushHistory);
   const getObjectLayerId = useDocumentStore((s) => s.getObjectLayerId);
+  const opacityBeforeRef = useRef<number | null>(null);
+
+  const commitOpacity = useCallback(() => {
+    const before = opacityBeforeRef.current;
+    opacityBeforeRef.current = null;
+    if (before == null) return;
+    const current = useDocumentStore.getState().getObject(obj.id);
+    if (!current) return;
+    commitObjectFieldHistory(
+      obj.id,
+      "opacity",
+      before,
+      current.opacity,
+      "Change opacity",
+    );
+  }, [obj.id]);
 
   const commitChange = useCallback(
     (field: string, before: unknown, after: unknown) => {
@@ -188,13 +206,17 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
           min={0}
           max={100}
           value={Math.round(obj.opacity * 100)}
-          onChange={(e) => {
-            const before = obj.opacity;
-            const after = Number(e.target.value) / 100;
-            updateObject(obj.id, { opacity: after });
-            // History pushed on mouseUp via onBlur
-            void before;
+          onFocus={() => {
+            opacityBeforeRef.current = obj.opacity;
           }}
+          onPointerDown={() => {
+            opacityBeforeRef.current = obj.opacity;
+          }}
+          onChange={(e) => {
+            updateObject(obj.id, { opacity: Number(e.target.value) / 100 });
+          }}
+          onPointerUp={commitOpacity}
+          onBlur={commitOpacity}
           className="flex-1 h-2"
         />
         <span className="w-8 text-right text-gray-600">
@@ -455,7 +477,7 @@ function NumInput({
           if (raw.trim() === "") return;
           const parsed = Number(raw);
           if (!Number.isFinite(parsed)) return;
-          onChange(parsed);
+          onChange(clampNumber(parsed, min, max));
         }}
         className="w-full px-1.5 py-0.5 text-xs border border-gray-300 rounded bg-white"
       />

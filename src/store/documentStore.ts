@@ -408,6 +408,21 @@ type SetState = (
   partial: Partial<DocumentState> | ((state: DocumentState) => Partial<DocumentState>),
 ) => void;
 
+function dropLayer(
+  layers: VectorLayer[],
+  layerId: string,
+  activeLayerId: string,
+): { layers: VectorLayer[]; activeLayerId: string } {
+  const next = layers.filter((layer) => layer.id !== layerId);
+  return {
+    layers: next,
+    activeLayerId:
+      activeLayerId === layerId
+        ? (next[next.length - 1]?.id ?? activeLayerId)
+        : activeLayerId,
+  };
+}
+
 /**
  * Apply operations in reverse (for undo)
  */
@@ -495,19 +510,28 @@ function applyOperationReverse(
       }));
       break;
 
+    case "reorder-layer":
+      setState((state) => {
+        const layers = [...state.layers];
+        const [removed] = layers.splice(op.toIndex, 1);
+        if (!removed) return {};
+        layers.splice(op.fromIndex, 0, removed);
+        return { layers };
+      });
+      break;
+
     case "add-layer":
-      // Undo add layer = remove it
-      setState((state) => ({
-        layers: state.layers.filter((l) => l.id !== op.layer.id),
-      }));
+      // Undo add layer = remove it and leave another layer active
+      setState((state) => dropLayer(state.layers, op.layer.id, state.activeLayerId));
       break;
 
     case "remove-layer":
-      // Undo remove layer = re-insert at original index
+      // Undo remove layer = re-insert at original index and focus it
       setState((state) => {
         const layers = [...state.layers];
-        layers.splice(op.index, 0, op.layer);
-        return { layers };
+        const index = Math.min(Math.max(op.index, 0), layers.length);
+        layers.splice(index, 0, op.layer);
+        return { layers, activeLayerId: op.layer.id };
       });
       break;
 
@@ -586,18 +610,27 @@ function applyOperationForward(
       }));
       break;
 
-    case "add-layer":
+    case "reorder-layer":
       setState((state) => {
         const layers = [...state.layers];
-        layers.splice(op.index, 0, op.layer);
+        const [removed] = layers.splice(op.fromIndex, 1);
+        if (!removed) return {};
+        layers.splice(op.toIndex, 0, removed);
         return { layers };
       });
       break;
 
+    case "add-layer":
+      setState((state) => {
+        const layers = [...state.layers];
+        const index = Math.min(Math.max(op.index, 0), layers.length);
+        layers.splice(index, 0, op.layer);
+        return { layers, activeLayerId: op.layer.id };
+      });
+      break;
+
     case "remove-layer":
-      setState((state) => ({
-        layers: state.layers.filter((l) => l.id !== op.layer.id),
-      }));
+      setState((state) => dropLayer(state.layers, op.layer.id, state.activeLayerId));
       break;
 
     case "modify-layer":

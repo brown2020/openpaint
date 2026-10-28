@@ -1,7 +1,17 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { computeObjectReorder } from "@/lib/vector/layerObjectReorder";
+import {
+  addLayerWithHistory,
+  commitLayerFieldHistory,
+  removeLayerWithHistory,
+  removeObjectWithHistory,
+  reorderLayerWithHistory,
+  reorderObjectWithHistory,
+  updateLayerWithHistory,
+  updateObjectWithHistory,
+} from "@/lib/vector/layerEdits";
 import { useDocumentStore } from "@/store/documentStore";
 import type { VectorLayer } from "@/types/vector";
 import { ObjectRow, EyeIcon, LockIcon } from "./LayerObjectRow";
@@ -13,29 +23,41 @@ export function LayersPanel() {
   const layers = useDocumentStore((s) => s.layers);
   const activeLayerId = useDocumentStore((s) => s.activeLayerId);
   const selectedObjectIds = useDocumentStore((s) => s.selectedObjectIds);
-  const addLayer = useDocumentStore((s) => s.addLayer);
-  const removeLayer = useDocumentStore((s) => s.removeLayer);
   const setActiveLayer = useDocumentStore((s) => s.setActiveLayer);
   const updateLayer = useDocumentStore((s) => s.updateLayer);
-  const reorderLayer = useDocumentStore((s) => s.reorderLayer);
   const selectObject = useDocumentStore((s) => s.selectObject);
-  const updateObject = useDocumentStore((s) => s.updateObject);
-  const removeObject = useDocumentStore((s) => s.removeObject);
-  const reorderObject = useDocumentStore((s) => s.reorderObject);
+  const layerOpacityBefore = useRef<number | null>(null);
 
   const canDeleteLayer = layers.length > 1;
   const selectedSet = new Set(selectedObjectIds);
 
   const handleMoveUp = (index: number) => {
     if (index < layers.length - 1) {
-      reorderLayer(index, index + 1);
+      reorderLayerWithHistory(index, index + 1);
     }
   };
 
   const handleMoveDown = (index: number) => {
     if (index > 0) {
-      reorderLayer(index, index - 1);
+      reorderLayerWithHistory(index, index - 1);
     }
+  };
+
+  const commitLayerOpacity = () => {
+    const before = layerOpacityBefore.current;
+    layerOpacityBefore.current = null;
+    if (before == null) return;
+    const layer = useDocumentStore
+      .getState()
+      .layers.find((item) => item.id === activeLayerId);
+    if (!layer) return;
+    commitLayerFieldHistory(
+      activeLayerId,
+      "opacity",
+      before,
+      layer.opacity,
+      "Change layer opacity",
+    );
   };
 
   const handleSelectObject = useCallback(
@@ -53,7 +75,7 @@ export function LayersPanel() {
         <div className="flex gap-1">
           <button
             type="button"
-            onClick={() => addLayer()}
+            onClick={() => addLayerWithHistory()}
             className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-300 rounded"
             title="Add Layer"
             aria-label="Add layer"
@@ -64,7 +86,7 @@ export function LayersPanel() {
           </button>
           <button
             type="button"
-            onClick={() => removeLayer(activeLayerId)}
+            onClick={() => removeLayerWithHistory(activeLayerId)}
             disabled={!canDeleteLayer}
             className={`p-1 rounded ${
               canDeleteLayer
@@ -99,7 +121,13 @@ export function LayersPanel() {
               >
                 <button
                   type="button"
-                  onClick={() => updateLayer(layer.id, { visible: !layer.visible })}
+                  onClick={() =>
+                    updateLayerWithHistory(
+                      layer.id,
+                      { visible: !layer.visible },
+                      layer.visible ? "Hide layer" : "Show layer",
+                    )
+                  }
                   className={`p-1 rounded ${layer.visible ? "text-gray-700" : "text-gray-600"}`}
                   title={layer.visible ? "Hide layer" : "Show layer"}
                   aria-label={layer.visible ? "Hide layer" : "Show layer"}
@@ -109,7 +137,13 @@ export function LayersPanel() {
 
                 <button
                   type="button"
-                  onClick={() => updateLayer(layer.id, { locked: !layer.locked })}
+                  onClick={() =>
+                    updateLayerWithHistory(
+                      layer.id,
+                      { locked: !layer.locked },
+                      layer.locked ? "Unlock layer" : "Lock layer",
+                    )
+                  }
                   className={`p-1 rounded ${layer.locked ? "text-yellow-600" : "text-gray-600"}`}
                   title={layer.locked ? "Unlock layer" : "Lock layer"}
                   aria-label={layer.locked ? "Unlock layer" : "Lock layer"}
@@ -174,13 +208,21 @@ export function LayersPanel() {
                   selectedSet={selectedSet}
                   onSelectObject={handleSelectObject}
                   onToggleVisible={(objectId, visible) =>
-                    updateObject(objectId, { visible })
+                    updateObjectWithHistory(
+                      objectId,
+                      { visible },
+                      visible ? "Show object" : "Hide object",
+                    )
                   }
                   onToggleLocked={(objectId, locked) =>
-                    updateObject(objectId, { locked })
+                    updateObjectWithHistory(
+                      objectId,
+                      { locked },
+                      locked ? "Lock object" : "Unlock object",
+                    )
                   }
-                  onDeleteObject={removeObject}
-                  onReorderObject={reorderObject}
+                  onDeleteObject={removeObjectWithHistory}
+                  onReorderObject={reorderObjectWithHistory}
                 />
               )}
             </div>
@@ -202,11 +244,21 @@ export function LayersPanel() {
               value={Math.round(
                 (layers.find((l) => l.id === activeLayerId)?.opacity ?? 1) * 100,
               )}
+              onFocus={() => {
+                const layer = layers.find((item) => item.id === activeLayerId);
+                layerOpacityBefore.current = layer?.opacity ?? null;
+              }}
+              onPointerDown={() => {
+                const layer = layers.find((item) => item.id === activeLayerId);
+                layerOpacityBefore.current = layer?.opacity ?? null;
+              }}
               onChange={(e) =>
                 updateLayer(activeLayerId, {
                   opacity: Number(e.target.value) / 100,
                 })
               }
+              onPointerUp={commitLayerOpacity}
+              onBlur={commitLayerOpacity}
               className="flex-1"
             />
             <span className="text-xs text-gray-600 w-8 text-right">
