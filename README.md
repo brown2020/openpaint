@@ -29,7 +29,7 @@ Eraser deletes the object under the cursor. Fill sets that object's solid fill. 
 | Backend | Firebase client SDK (Auth, Firestore, Storage) | ^13.1.0 |
 | IDs | uuid | ^14.0.3 |
 | Tests | Vitest, Vite, jsdom | vitest ^5.0.5, vite ^8.3.5, jsdom ^30.1.3 |
-| Lint | ESLint, eslint-config-next | eslint ^10.13.0, eslint-config-next ^16.4.3 |
+| Lint | ESLint, eslint-config-next | eslint ^10.14.0, eslint-config-next ^16.4.3 |
 
 There is no Firebase Admin SDK, no API routes, and no AI provider in this repo. `tsc` is TypeScript 7. The `typescript` package stays on the 6.0 API because `typescript-eslint` (pulled in by `eslint-config-next`) does not load against TypeScript 7.
 
@@ -58,11 +58,9 @@ cors.json
 
 ### Prerequisites
 
-- Node.js 22 (the version CI uses) or a current LTS
+- Node.js 24 (CI uses Node 24; the Firebase JS SDK declares `engines.node >= 24.12.0`)
 - npm
 - A Firebase project if you want auth and cloud save. Drawing works without it.
-
-The Firebase JS SDK declares `engines.node >= 24.12.0`. `npm install` on Node 22 prints `EBADENGINE` warnings. CI stays on Node 22 because the app still installs, tests, and builds there.
 
 ### Install
 
@@ -134,7 +132,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 Vitest covers vector helpers, SVG export, local project JSON, document history, auth/session helpers, security headers, deploy config, sync dirty marking, and the projects hook.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `dev` and `main`: `npm ci`, lint, typecheck, test, and build on Node 22. Firebase `NEXT_PUBLIC_*` values come from GitHub Actions secrets.
+GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `dev` and `main`: `npm ci`, lint, typecheck, test, and build on Node 24. Firebase `NEXT_PUBLIC_*` values come from GitHub Actions secrets.
 
 ## Deployment
 
