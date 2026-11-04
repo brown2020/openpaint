@@ -64,22 +64,6 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
   const updateObject = useDocumentStore((s) => s.updateObject);
   const pushHistory = useDocumentStore((s) => s.pushHistory);
   const getObjectLayerId = useDocumentStore((s) => s.getObjectLayerId);
-  const opacityBeforeRef = useRef<number | null>(null);
-
-  const commitOpacity = useCallback(() => {
-    const before = opacityBeforeRef.current;
-    opacityBeforeRef.current = null;
-    if (before == null) return;
-    const current = useDocumentStore.getState().getObject(obj.id);
-    if (!current) return;
-    commitObjectFieldHistory(
-      obj.id,
-      "opacity",
-      before,
-      current.opacity,
-      "Change opacity",
-    );
-  }, [obj.id]);
 
   const commitChange = useCallback(
     (field: string, before: unknown, after: unknown) => {
@@ -197,140 +181,17 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
         suffix="°"
       />
 
-      {/* Opacity */}
-      <div className="flex items-center gap-2">
-        <label htmlFor="prop-opacity" className="text-gray-600 w-14">Opacity</label>
-        <input
-          id="prop-opacity"
-          type="range"
-          min={0}
-          max={100}
-          value={Math.round(obj.opacity * 100)}
-          onFocus={() => {
-            opacityBeforeRef.current = obj.opacity;
-          }}
-          onPointerDown={() => {
-            opacityBeforeRef.current = obj.opacity;
-          }}
-          onChange={(e) => {
-            updateObject(obj.id, { opacity: Number(e.target.value) / 100 });
-          }}
-          onPointerUp={commitOpacity}
-          onBlur={commitOpacity}
-          className="flex-1 h-2"
-        />
-        <span className="w-8 text-right text-gray-600">
-          {Math.round(obj.opacity * 100)}%
-        </span>
-      </div>
-
-      {/* Fill */}
-      <div className="flex flex-col gap-1">
-        <span className="text-gray-600 font-medium" id="prop-fill-label">Fill</span>
-        {obj.fill && obj.fill.type === "solid" ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              aria-labelledby="prop-fill-label"
-              value={obj.fill.color}
-              onChange={(e) => {
-                const before = obj.fill;
-                const after = { ...obj.fill!, type: "solid" as const, color: e.target.value };
-                updateObject(obj.id, { fill: after });
-                commitChange("fill", before, after);
-              }}
-              className="w-8 h-6 cursor-pointer border-0 p-0"
-            />
-            <span className="text-gray-500">{obj.fill.color}</span>
-            <button
-              onClick={() => {
-                const before = obj.fill;
-                updateObject(obj.id, { fill: null });
-                commitChange("fill", before, null);
-              }}
-              className="ml-auto text-gray-400 hover:text-red-500"
-              title="Remove fill"
-            >
-              ✕
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              const fill = { type: "solid" as const, color: "#3b82f6", opacity: 1 };
-              updateObject(obj.id, { fill });
-              commitChange("fill", null, fill);
-            }}
-            className="text-blue-500 hover:text-blue-700"
-          >
-            + Add fill
-          </button>
-        )}
-      </div>
-
-      {/* Stroke */}
-      <div className="flex flex-col gap-1">
-        <span className="text-gray-600 font-medium" id="prop-stroke-label">Stroke</span>
-        {obj.stroke ? (
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                aria-labelledby="prop-stroke-label"
-                value={obj.stroke.color}
-                onChange={(e) => {
-                  const before = obj.stroke;
-                  const after = { ...obj.stroke!, color: e.target.value };
-                  updateObject(obj.id, { stroke: after });
-                  commitChange("stroke", before, after);
-                }}
-                className="w-8 h-6 cursor-pointer border-0 p-0"
-              />
-              <NumInput
-                label="W"
-                value={obj.stroke.width}
-                onChange={(v) => {
-                  const before = obj.stroke;
-                  const after = { ...obj.stroke!, width: v };
-                  updateObject(obj.id, { stroke: after });
-                  commitChange("stroke", before, after);
-                }}
-                min={0.5}
-                max={100}
-              />
-              <button
-                onClick={() => {
-                  const before = obj.stroke;
-                  updateObject(obj.id, { stroke: null });
-                  commitChange("stroke", before, null);
-                }}
-                className="ml-auto text-gray-400 hover:text-red-500"
-                title="Remove stroke"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              const stroke = {
-                color: "#000000",
-                opacity: 1,
-                width: 2,
-                lineCap: "round" as const,
-                lineJoin: "round" as const,
-                dashArray: [] as number[],
-              };
-              updateObject(obj.id, { stroke });
-              commitChange("stroke", null, stroke);
-            }}
-            className="text-blue-500 hover:text-blue-700"
-          >
-            + Add stroke
-          </button>
-        )}
-      </div>
+      <ObjectOpacityControl objectId={obj.id} opacity={obj.opacity} />
+      <ObjectFillControl
+        obj={obj}
+        updateObject={updateObject}
+        commitChange={commitChange}
+      />
+      <ObjectStrokeControl
+        obj={obj}
+        updateObject={updateObject}
+        commitChange={commitChange}
+      />
 
       {/* Type-specific properties */}
       {obj.type === "rectangle" && (
@@ -359,6 +220,193 @@ function SingleObjectProps({ obj }: { obj: VectorObject }) {
 
       {obj.type === "text" && (
         <TextObjectProps obj={obj} updateObject={updateObject} commitChange={commitChange} />
+      )}
+    </div>
+  );
+}
+
+type ObjectUpdater = ReturnType<typeof useDocumentStore.getState>["updateObject"];
+type CommitChange = (field: string, before: unknown, after: unknown) => void;
+
+function ObjectOpacityControl({
+  objectId,
+  opacity,
+}: {
+  objectId: string;
+  opacity: number;
+}) {
+  const updateObject = useDocumentStore((s) => s.updateObject);
+  const opacityBeforeRef = useRef<number | null>(null);
+
+  const commitOpacity = useCallback(() => {
+    const before = opacityBeforeRef.current;
+    opacityBeforeRef.current = null;
+    if (before == null) return;
+    const current = useDocumentStore.getState().getObject(objectId);
+    if (!current) return;
+    commitObjectFieldHistory(
+      objectId,
+      "opacity",
+      before,
+      current.opacity,
+      "Change opacity",
+    );
+  }, [objectId]);
+
+  return (
+    <div className="flex items-center gap-2">
+      <label htmlFor="prop-opacity" className="text-gray-600 w-14">Opacity</label>
+      <input
+        id="prop-opacity"
+        type="range"
+        min={0}
+        max={100}
+        value={Math.round(opacity * 100)}
+        onFocus={() => {
+          opacityBeforeRef.current = opacity;
+        }}
+        onPointerDown={() => {
+          opacityBeforeRef.current = opacity;
+        }}
+        onChange={(e) => {
+          updateObject(objectId, { opacity: Number(e.target.value) / 100 });
+        }}
+        onPointerUp={commitOpacity}
+        onBlur={commitOpacity}
+        className="flex-1 h-2"
+      />
+      <span className="w-8 text-right text-gray-600">
+        {Math.round(opacity * 100)}%
+      </span>
+    </div>
+  );
+}
+
+function ObjectFillControl({
+  obj,
+  updateObject,
+  commitChange,
+}: {
+  obj: VectorObject;
+  updateObject: ObjectUpdater;
+  commitChange: CommitChange;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-gray-600 font-medium" id="prop-fill-label">Fill</span>
+      {obj.fill && obj.fill.type === "solid" ? (
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            aria-labelledby="prop-fill-label"
+            value={obj.fill.color}
+            onChange={(e) => {
+              const before = obj.fill;
+              const after = { ...obj.fill!, type: "solid" as const, color: e.target.value };
+              updateObject(obj.id, { fill: after });
+              commitChange("fill", before, after);
+            }}
+            className="w-8 h-6 cursor-pointer border-0 p-0"
+          />
+          <span className="text-gray-500">{obj.fill.color}</span>
+          <button
+            onClick={() => {
+              const before = obj.fill;
+              updateObject(obj.id, { fill: null });
+              commitChange("fill", before, null);
+            }}
+            className="ml-auto text-gray-400 hover:text-red-500"
+            title="Remove fill"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            const fill = { type: "solid" as const, color: "#3b82f6", opacity: 1 };
+            updateObject(obj.id, { fill });
+            commitChange("fill", null, fill);
+          }}
+          className="text-blue-500 hover:text-blue-700"
+        >
+          + Add fill
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ObjectStrokeControl({
+  obj,
+  updateObject,
+  commitChange,
+}: {
+  obj: VectorObject;
+  updateObject: ObjectUpdater;
+  commitChange: CommitChange;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-gray-600 font-medium" id="prop-stroke-label">Stroke</span>
+      {obj.stroke ? (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              aria-labelledby="prop-stroke-label"
+              value={obj.stroke.color}
+              onChange={(e) => {
+                const before = obj.stroke;
+                const after = { ...obj.stroke!, color: e.target.value };
+                updateObject(obj.id, { stroke: after });
+                commitChange("stroke", before, after);
+              }}
+              className="w-8 h-6 cursor-pointer border-0 p-0"
+            />
+            <NumInput
+              label="W"
+              value={obj.stroke.width}
+              onChange={(v) => {
+                const before = obj.stroke;
+                const after = { ...obj.stroke!, width: v };
+                updateObject(obj.id, { stroke: after });
+                commitChange("stroke", before, after);
+              }}
+              min={0.5}
+              max={100}
+            />
+            <button
+              onClick={() => {
+                const before = obj.stroke;
+                updateObject(obj.id, { stroke: null });
+                commitChange("stroke", before, null);
+              }}
+              className="ml-auto text-gray-400 hover:text-red-500"
+              title="Remove stroke"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            const stroke = {
+              color: "#000000",
+              opacity: 1,
+              width: 2,
+              lineCap: "round" as const,
+              lineJoin: "round" as const,
+              dashArray: [] as number[],
+            };
+            updateObject(obj.id, { stroke });
+            commitChange("stroke", null, stroke);
+          }}
+          className="text-blue-500 hover:text-blue-700"
+        >
+          + Add stroke
+        </button>
       )}
     </div>
   );

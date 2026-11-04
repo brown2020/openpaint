@@ -21,17 +21,17 @@ Eraser deletes the object under the cursor. Fill sets that object's solid fill. 
 
 | Area | Choice | Version |
 | --- | --- | --- |
-| Framework | Next.js (App Router) | ^16.4.3 |
+| Framework | Next.js (App Router) | ^16.4.5 |
 | UI | React, React DOM | ^19.3.1 |
-| Language | TypeScript | 7.0.2 compiler (`@typescript/native`); 6.0 API package (`typescript`, from `@typescript/typescript6`) for ESLint |
-| Styling | Tailwind CSS, `@tailwindcss/postcss` | ^4.3.3 |
+| Language | TypeScript | 6.0.3 (`tsc` and the ESLint compiler API) |
+| Styling | Tailwind CSS, `@tailwindcss/postcss` | ^4.3.4 |
 | State | Zustand | ^5.0.16 |
-| Backend | Firebase client SDK (Auth, Firestore, Storage) | ^13.1.0 |
+| Backend | Firebase client SDK (Auth, Firestore, Storage) | ^13.2.0 |
 | IDs | uuid | ^14.0.3 |
-| Tests | Vitest, Vite, jsdom | vitest ^5.0.5, vite ^8.3.5, jsdom ^30.1.3 |
-| Lint | ESLint, eslint-config-next | eslint ^10.14.0, eslint-config-next ^16.4.3 |
+| Tests | Vitest, Vite, jsdom | vitest ^5.1.0, vite ^8.3.5, jsdom ^30.1.3 |
+| Lint | ESLint, eslint-config-next | eslint ^10.14.0, eslint-config-next ^16.4.5 |
 
-There is no Firebase Admin SDK, no API routes, and no AI provider in this repo. `tsc` is TypeScript 7. The `typescript` package stays on the 6.0 API because `typescript-eslint` (pulled in by `eslint-config-next`) does not load against TypeScript 7.
+There is no Firebase Admin SDK, no API routes, and no AI provider in this repo. `tsc` and the `typescript` package are 6.0.3. TypeScript 7 is not used because it has no compiler API that `typescript-eslint` can load.
 
 ## Project structure
 
@@ -125,14 +125,14 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 | `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` (TypeScript 7) |
+| `npm run typecheck` | `tsc --noEmit` (TypeScript 6.0.3) |
 | `npm test` | Vitest once (`vitest run`) |
 
 ## Testing and CI
 
 Vitest covers vector helpers, SVG export, local project JSON, document history, auth/session helpers, security headers, deploy config, sync dirty marking, and the projects hook.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `dev` and `main`: `npm ci`, lint, typecheck, test, and build on Node 24. Firebase `NEXT_PUBLIC_*` values come from GitHub Actions secrets.
+GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `dev` and `main`: `npm ci`, lint, typecheck, test, and build on Node 24. Firebase `NEXT_PUBLIC_*` values are set only on the build step, from GitHub Actions secrets.
 
 ## Deployment
 

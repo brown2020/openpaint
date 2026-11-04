@@ -2,7 +2,7 @@
 
 Next steps, known bugs, and open issues. Current behavior is `spec.md`. Do not treat this file as a commitment to ship everything in it.
 
-**Last aligned with the codebase:** 2026-11-02 on `dev`.
+**Last aligned with the codebase:** 2026-11-04 on `dev`.
 
 ## Next steps
 
@@ -49,7 +49,8 @@ A tool selects anchors on one path. Drag an anchor to move it, drag a handle to 
 
 - Confirm the live Storage bucket CORS matches `cors.json`. At the last promotion, `gsutil cors set` was still pending. Vector save of PNGs from a new origin fails until the bucket allows that origin. Firestore rules, indexes, and Storage rules from `b82ec6b` were already deployed then. This repo does not deploy them.
 - CI and local validation use Node 24. The Firebase JS SDK declares `engines.node >= 24.12.0`. Node 22 still installs, with `EBADENGINE` warnings.
-- TypeScript 7 is the `tsc` binary (`@typescript/native`, `typescript@7.0.2`). The `typescript` dependency stays on the 6.0 API (`@typescript/typescript6@6.0.2`) because `typescript-eslint@8.72.1` peers `typescript >=4.8.4 <6.1.0`. Drop the side-by-side install when `eslint-config-next` supports TypeScript 7.
+- `typescript` stays on 6.0.3. TypeScript 7 has no compiler API, and `typescript-eslint@8.72.1` peers `typescript >=4.8.4 <6.1.0`.
+- `@types/node` stays on 24.x (`^24.19.2`) to match the Node 24 runtime. Latest on npm is 26.x.
 - `minimatch` 10 is overridden to `11.0.4` (GHSA-g3hv-75wg-m249). `minimatch@3.1.5` remains under `eslint-plugin-import`, `eslint-plugin-jsx-a11y`, and `eslint-plugin-react`. Those plugins call the v3 function export, and minimatch 11 only exposes named exports, so a blanket override breaks lint. No patched 3.x exists. `npm audit` still reports those five moderate findings. Do not downgrade `eslint-config-next` to clear them.
 - `postcss` stays overridden to `8.5.32` and `@grpc/grpc-js` to `1.14.7` (the current latest of each pin).
 - `firebase-admin` is not a dependency. Do not add a `jwks-rsa` / `jose` override unless that package is introduced.
